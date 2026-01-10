@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <span className="material-symbols-outlined text-[22px]">grid_view</span>
             <span className="font-medium">Dashboard</span>
           </a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1c2632] rounded-lg transition-colors">
+          <a href="/reports" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-[#1c2632] rounded-lg transition-colors">
             <span className="material-symbols-outlined text-[22px]">description</span>
             <span className="font-medium">Reports</span>
           </a>
