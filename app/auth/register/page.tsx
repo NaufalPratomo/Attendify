@@ -2,19 +2,74 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowBigLeft } from 'lucide-react';
+import { ArrowBigLeft, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.id]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      // Redirect to login page on success
+      router.push('/auth/login');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     // "dark" className ditambahkan di sini untuk memaksa tampilan Dark Mode
     <div className="dark">
       <div className="font-sans antialiased text-[#111418] dark:text-white bg-[#f6f7f8] dark:bg-[#101922] transition-colors duration-300">
-        <div className="relative flex min-h-screen w-full flex-col justify-center items-center overflow-x-hidden p-4">
-          
+        <div className="relative flex min-h-screen w-full flex-col justify-center items-center overflow-x-hidden p-4 py-10">
+
           {/* Main Card Container */}
-          <div className="w-full max-w-[480px] bg-white dark:bg-[#1C252E] rounded-xl shadow-lg border border-[#e5e7eb] dark:border-[#2e3740] p-8 md:p-12 transition-colors duration-300">
+          <div className="w-full max-w-[480px] bg-white dark:bg-[#1C252E] rounded-xl shadow-lg border border-[#e5e7eb] dark:border-[#2e3740] p-6 sm:p-8 md:p-12 transition-colors duration-300">
             <div className="size-full">
               <Link href="/">
                 <button className="flex items-center text-[#617589] dark:text-[#9AAAB8] text-sm font-medium hover:underline mb-4">
@@ -23,23 +78,33 @@ const RegisterPage = () => {
               </Link>
             </div>
             {/* Branding / Header */}
-            <div className="flex flex-col gap-2 mb-8 text-center">
-              <h1 className="text-3xl font-bold tracking-tight text-[#111418] dark:text-white">Register</h1>
+            <div className="flex flex-col gap-2 mb-6 sm:mb-8 text-center">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#111418] dark:text-white">Register</h1>
               <p className="text-[#617589] dark:text-[#9AAAB8] text-sm">Create your account to get started.</p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-200 text-red-700 text-sm dark:bg-red-900/30 dark:border-red-800 dark:text-red-400">
+                {error}
+              </div>
+            )}
+
             {/* Register Form */}
-            <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+            <form className="flex flex-col gap-4 sm:gap-5" onSubmit={handleSubmit}>
               {/*Name Field */}
-                <div className="flex flex-col gap-2">
-                    <label className="text-[#111418] dark:text-white text-sm font-medium leading-normal" htmlFor="name">
-                        Name
-                    </label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[#111418] dark:text-white text-sm font-medium leading-normal" htmlFor="name">
+                  Name
+                </label>
                 <input
-                    className="form-input w-full resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#137fec]/50 border border-[#dbe0e6] dark:border-[#3e4a56] bg-white dark:bg-[#1C252E] focus:border-[#137fec] h-12 placeholder:text-[#617589] dark:placeholder:text-[#637588] px-4 text-base font-normal leading-normal transition-colors"
-                    id="name"
-                    placeholder="Your full name"
-                    type="text"
+                  className="form-input w-full resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#137fec]/50 border border-[#dbe0e6] dark:border-[#3e4a56] bg-white dark:bg-[#1C252E] focus:border-[#137fec] h-12 placeholder:text-[#617589] dark:placeholder:text-[#637588] px-4 text-base font-normal leading-normal transition-colors"
+                  id="name"
+                  placeholder="Your full name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
                 />
               </div>
               {/* Email Field */}
@@ -52,6 +117,9 @@ const RegisterPage = () => {
                   id="email"
                   placeholder="name@mail.com"
                   type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
                 />
               </div>
 
@@ -68,8 +136,11 @@ const RegisterPage = () => {
                     id="password"
                     placeholder="Enter your password"
                     type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
                   />
-                  <div 
+                  <div
                     className="absolute right-0 flex h-full items-center justify-center pr-4 text-[#617589] cursor-pointer hover:text-[#137fec] transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -86,20 +157,23 @@ const RegisterPage = () => {
                   </div>
                 </div>
               </div>
-                            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <label className="text-[#111418] dark:text-white text-sm font-medium leading-normal" htmlFor="confirmPassword">
-                   Confirm Password
+                    Confirm Password
                   </label>
                 </div>
                 <div className="relative flex w-full items-center rounded-lg">
                   <input
                     className="form-input w-full resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#137fec]/50 border border-[#dbe0e6] dark:border-[#3e4a56] bg-white dark:bg-[#1C252E] focus:border-[#137fec] h-12 placeholder:text-[#617589] dark:placeholder:text-[#637588] px-4 pr-12 text-base font-normal leading-normal transition-colors"
-                    id="password"
-                    placeholder="Enter your password"
+                    id="confirmPassword"
+                    placeholder="Confirm your password"
                     type={showPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
                   />
-                  <div 
+                  <div
                     className="absolute right-0 flex h-full items-center justify-center pr-4 text-[#617589] cursor-pointer hover:text-[#137fec] transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -118,18 +192,22 @@ const RegisterPage = () => {
               </div>
 
               {/* Login Button */}
-              <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#137fec] text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-[#1170d2] transition-colors shadow-sm mt-2">
-                <span className="truncate">Sign in</span>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#137fec] text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-[#1170d2] transition-colors shadow-sm mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <span className="truncate">Sign Up</span>}
               </button>
 
               {/* Sign Up Footer */}
               <div className="mt-4 text-center">
-                    <p className="text-[#617589] dark:text-[#9AAAB8] text-sm">
-                      Already  have an account?{' '}
-                      <a className="text-[#137fec] font-medium hover:underline" href="/auth/login">
-                        Login
-                      </a>
-                    </p>
+                <p className="text-[#617589] dark:text-[#9AAAB8] text-sm">
+                  Already  have an account?{' '}
+                  <a className="text-[#137fec] font-medium hover:underline" href="/auth/login">
+                    Login
+                  </a>
+                </p>
               </div>
             </form>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, ChangeEvent } from "react";
+import React, { useState, useRef, ChangeEvent, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import Link from "next/link";
@@ -30,10 +30,10 @@ const ProfilePage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile>({
-    name: "Jane Doe",
-    email: "jane@attendify.com",
-    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Jane",
-    role: "Product Designer",
+    name: "",
+    email: "",
+    avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=User",
+    role: "Member",
     joinDate: "Member since 2024",
   });
 
@@ -43,6 +43,27 @@ const ProfilePage = () => {
   const [copied, setCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch User Data
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/dashboard/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(prev => ({
+            ...prev,
+            name: data.userName,
+            email: data.userEmail,
+            avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${data.userName}`
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to fetch user", e);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // --- HANDLERS ---
 
@@ -65,6 +86,8 @@ const ProfilePage = () => {
     };
     setProfile(finalProfile);
     setIsEditing(false);
+    // Note: To persist changes, we would need an API endpoint for updating profile.
+    // For now, this is client-side only state update.
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,22 +112,23 @@ const ProfilePage = () => {
   return (
     // Container Utama: h-screen & overflow-hidden untuk mencegah scrollbar window
     <div className="flex h-screen w-full bg-[#0f1218] text-white font-sans overflow-hidden selection:bg-[#137fec]/30">
-      
+
       {/* Sidebar Component */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        user={{ name: profile.name, email: profile.email }}
       />
 
       {/* Main Layout Column */}
-      <div className="relative flex flex-1 flex-col h-full overflow-hidden transition-all duration-300">
-        
+      <div className="relative flex flex-1 flex-col h-full overflow-hidden transition-all duration-300 lg:ml-72">
+
         {/* Header Component */}
-        <Header onMenuClick={() => setIsSidebarOpen(true)} />
+        <Header onMenuClick={() => setIsSidebarOpen(true)} userName={profile.name} />
 
         {/* === MAIN CONTENT AREA === */}
         <main className="relative flex-1 flex items-center justify-center p-4">
-          
+
           {/* 1. ANIMATED BACKGROUND BLOBS (Efek Aurora) */}
           <div className="absolute top-[10%] left-[20%] w-[400px] h-[400px] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse" />
           <div className="absolute bottom-[10%] right-[20%] w-[400px] h-[400px] bg-purple-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse delay-1000" />
@@ -133,7 +157,7 @@ const ProfilePage = () => {
                 {/* Name & Role */}
                 <div className="mt-5 text-center space-y-1">
                   <h1 className="text-2xl font-bold tracking-tight text-white">
-                    {profile.name}
+                    {profile.name || 'Loading...'}
                   </h1>
                 </div>
 
@@ -151,7 +175,7 @@ const ProfilePage = () => {
                         Email Address
                       </p>
                       <p className="text-sm text-gray-200 truncate font-medium">
-                        {profile.email}
+                        {profile.email || 'Loading...'}
                       </p>
                     </div>
                   </div>
