@@ -18,7 +18,7 @@ const LoginPage = () => {
             <div className="size-full">
               <Link href="/">
                 <button className="flex items-center text-[#617589] dark:text-[#9AAAB8] text-sm font-medium hover:underline mb-4">
-                  <ArrowBigLeft /><span>Back</span>
+                  <ArrowBigLeft className="mr-1 h-5 w-5" /> Back
                 </button>
               </Link>
             </div>
