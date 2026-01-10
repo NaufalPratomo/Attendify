@@ -11,19 +11,19 @@ const AttendifyLanding: React.FC = () => {
         <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
           
           {/* Top Navigation */}
-          <header className="sticky top-0 z-50 flex items-center justify-center border-b bg-black backdrop-blur-md px-10 py-4 transition-colors duration-300">
+           <header className="sticky top-0 z-50 flex items-center justify-center border-b border-black/20 bg-[#101322]/95 backdrop-blur-md px-10 py-4 transition-colors duration-300 after:content-[''] after:absolute after:left-0 after:right-0 after:-bottom-10 after:h-10 after:bg-linear-to-b after:from-[#111218] after:to-transparent after:pointer-events-none">
              <div className="flex mb-2 mt-2 align-center items-center text-[#111218] dark:text-white">
                 <h2 className="text-[#111218] dark:text-white text-4xl font-bold leading-tight tracking-[-0.015em]">Attendify</h2>
              </div>
           </header> 
-
+                    <div className="h-24 bg-linear-to-b from-[#101322] to-black" />
           {/* Hero Section */}
           <div className="layout-container flex grow flex-col bg-black">
             <div className="px-4 md:px-10 lg:px-40 flex flex-1 justify-center py-5">
-              <div className="layout-content-container flex flex-col max-w-[1200px] flex-1">
+              <div className="layout-content-container flex flex-col max-w-300 flex-1">
                 <div className="@container">
                   <div className="flex flex-col gap-10 px-4 py-10 md:py-20 @[864px]:flex-row @[864px]:items-center">
-                    <div className="flex flex-col gap-8 @[480px]:min-w-[400px] flex-1">
+                    <div className="flex flex-col gap-8 @[480px]:min-w-100 flex-1">
                       <div className="flex flex-col text-6xl gap-4 text-left">
                         <TextType 
                           text={["Manage Your Time", "for your working time", "Happy working!"]}
@@ -38,20 +38,20 @@ const AttendifyLanding: React.FC = () => {
                         </p>
                       <div className="flex flex-wrap gap-4">
                         <Link href="/auth/login">
-                           <button className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold leading-normal tracking-[0.015em] shadow-lg shadow-blue-600/30 transform hover:-translate-y-1 transition-all duration-200">
+                           <button className="flex min-w-21 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-blue-600 hover:bg-blue-700 text-white text-base font-bold leading-normal tracking-[0.015em] shadow-lg shadow-blue-600/30 transform hover:-translate-y-1 transition-all duration-200">
                               <span className="truncate">Get Started</span>
                            </button>
                         </Link>
                       </div>
                     </div> 
 
-                    <div className="flex-1 w-full max-w-[600px] perspective-1000">
+                    <div className="flex-1 w-full max-w-150 perspective-1000">
                       <div 
-                        className="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transform rotate-y-[-5deg] hover:rotate-y-0 transition-transform duration-500 ease-out" 
+                        className="relative w-full aspect-4/3 rounded-xl overflow-hidden shadow-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 transform rotate-y-[-5deg] hover:rotate-y-0 transition-transform duration-500 ease-out" 
                         data-alt="Minimalist dashboard interface" 
                         style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBZTCzqPhuZvmez0T4saNs8BGhr2JBw8RQxbcmoNm-VXSCjUhkz1q5d5c0eZMWAr0B1BcUPOM8S050Gx1Fnoi7BID-dJte_N-sZ2zMlkFPfcgdSA4vDTBM4qGliBOx43vaZ6iubWA6kFFALAv5dJAdQS1SGHandwC-ilA8EH7ITaj89-7xTHE7BWM0U9hpDlXruZ2tTBUzwv62Q9ENo1G0LkZ7qXEYp5H2PHmkFR_uj9Z5iZm78FspWv1f4JVA57T7Du4DjoXh3Z7Q')", backgroundSize: 'cover', backgroundPosition: 'center' }}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                        <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent"></div>
                       </div>
                     </div>
                   </div> 
@@ -66,14 +66,14 @@ const AttendifyLanding: React.FC = () => {
           {/* Features Section */}
           <div className="layout-container flex grow flex-col bg-[#101322] py-20 transition-colors duration-300" id="features">
             <div className="px-4 md:px-40 flex flex-1 justify-center">
-              <div className="layout-content-container flex flex-col max-w-[1200px] flex-1">
+              <div className="layout-content-container flex flex-col max-w-300 flex-1">
                 <div className="flex flex-col gap-12 @container">
                   <div className="flex flex-col items-center text-center gap-6">
                     <h2 className="text-blue-600 text-sm font-bold uppercase tracking-widest">Features</h2>
-                    <h1 className="text-[#111218] dark:text-white tracking-tight text-3xl font-bold leading-tight md:text-5xl max-w-[720px]">
+                    <h1 className="text-[#111218] dark:text-white tracking-tight text-3xl font-bold leading-tight md:text-5xl max-w-180">
                       Everything you need to stay productive, nothing you don't.
                     </h1>
-                    <p className="text-[#616789] dark:text-gray-400 text-lg font-normal leading-normal max-w-[600px]">
+                    <p className="text-[#616789] dark:text-gray-400 text-lg font-normal leading-normal max-w-150">
                       We stripped away the complexity to give you a tool that actually helps you focus, rather than distracting you.
                     </p>
                   </div>
@@ -122,7 +122,7 @@ const AttendifyLanding: React.FC = () => {
 
           {/* Footer */}
           <footer className="border-t border-[#f0f1f4] dark:border-gray-800 bg-white dark:bg-[#101322] py-12 px-4 md:px-40 transition-colors duration-300">
-            <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="max-w-300 mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-2 text-[#111218] dark:text-white">
                 <span className="text-lg font-bold">Attendify</span>
               </div>
