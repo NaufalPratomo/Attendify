@@ -78,16 +78,46 @@ const ProfilePage = () => {
     setPreviewImage(null);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  // --- STATE MANAGEMENT ---
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalProfile = {
-      ...tempProfile,
-      avatar: previewImage || tempProfile.avatar,
-    };
-    setProfile(finalProfile);
-    setIsEditing(false);
-    // Note: To persist changes, we would need an API endpoint for updating profile.
-    // For now, this is client-side only state update.
+    setIsSaving(true);
+    setErrorMessage("");
+
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: tempProfile.name,
+          email: tempProfile.email,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to update profile');
+      }
+
+      setProfile(prev => ({
+        ...prev,
+        name: data.user.name,
+        email: data.user.email,
+        avatar: previewImage || prev.avatar,
+      }));
+
+      setIsEditing(false);
+      // Optional: Show success feedback
+    } catch (error: any) {
+      console.error("Update failed", error);
+      setErrorMessage(error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,20 +322,39 @@ const ProfilePage = () => {
                   </div>
                 </div>
 
+                {/* Error Message */}
+                {errorMessage && (
+                  <div className="text-sm text-red-400 bg-red-900/20 border border-red-900/50 p-3 rounded-lg">
+                    {errorMessage}
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-3 mt-4 pt-4 border-t border-white/10">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 transition-colors text-sm font-medium"
+                    disabled={isSaving}
+                    className="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 transition-colors text-sm font-medium disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors text-sm font-bold shadow-lg shadow-blue-900/20"
+                    disabled={isSaving}
+                    className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 ${isSaving
+                        ? 'bg-blue-600/50 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                      }`}
                   >
-                    Save Changes
+                    {isSaving ? (
+                      <>
+                        <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </button>
                 </div>
               </form>
