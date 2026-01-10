@@ -11,14 +11,14 @@ const AttendifyLanding: React.FC = () => {
         <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
           
           {/* Top Navigation */}
-          <header className="sticky top-0 z-50 flex items-center justify-center border-b border-[#f0f1f4] dark:border-gray-800 bg-white/90 dark:bg-[#101322]/90 backdrop-blur-md px-10 py-4 transition-colors duration-300">
+          <header className="sticky top-0 z-50 flex items-center justify-center border-b bg-black backdrop-blur-md px-10 py-4 transition-colors duration-300">
              <div className="flex mb-2 mt-2 align-center items-center text-[#111218] dark:text-white">
                 <h2 className="text-[#111218] dark:text-white text-4xl font-bold leading-tight tracking-[-0.015em]">Attendify</h2>
              </div>
-          </header>
+          </header> 
 
           {/* Hero Section */}
-          <div className="layout-container flex grow flex-col">
+          <div className="layout-container flex grow flex-col bg-black">
             <div className="px-4 md:px-10 lg:px-40 flex flex-1 justify-center py-5">
               <div className="layout-content-container flex flex-col max-w-[1200px] flex-1">
                 <div className="@container">
@@ -54,16 +54,17 @@ const AttendifyLanding: React.FC = () => {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                       </div>
                     </div>
-
                   </div> 
-
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Spacer Div */}
+          <div className="h-24 bg-linear-to-b from-black to-[#101322]" />
+
           {/* Features Section */}
-          <div className="layout-container flex grow flex-col bg-white dark:bg-[#101322] py-20 transition-colors duration-300" id="features">
+          <div className="layout-container flex grow flex-col bg-[#101322] py-20 transition-colors duration-300" id="features">
             <div className="px-4 md:px-40 flex flex-1 justify-center">
               <div className="layout-content-container flex flex-col max-w-[1200px] flex-1">
                 <div className="flex flex-col gap-12 @container">
@@ -114,12 +115,6 @@ const AttendifyLanding: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-center mt-8">
-                    <button className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 rounded-lg h-12 px-8 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-[#111218] dark:text-white text-base font-bold transition-all">
-                      <span>View all features</span>
-                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -131,13 +126,8 @@ const AttendifyLanding: React.FC = () => {
               <div className="flex items-center gap-2 text-[#111218] dark:text-white">
                 <span className="text-lg font-bold">Attendify</span>
               </div>
-              <div className="flex gap-8 text-sm text-[#616789] dark:text-gray-400">
-                <a className="hover:text-blue-600 transition-colors" href="#">Privacy</a>
-                <a className="hover:text-blue-600 transition-colors" href="#">Terms</a>
-                <a className="hover:text-blue-600 transition-colors" href="#">Contact</a>
-              </div>
               <div className="text-sm text-[#616789] dark:text-gray-500">
-                © 2026 Attendify Inc.
+                © 2026 Developer Josjis.
               </div>
             </div>
           </footer>

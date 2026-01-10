@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -17,10 +18,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         >
           <span className="material-symbols-outlined text-3xl">menu</span>
         </button>
-
+        <Link href="/dashboard">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold tracking-tight text-white">Attendify</h2>
         </div>
+        </Link>
       </div>
 
       <div className="flex items-center gap-6">
