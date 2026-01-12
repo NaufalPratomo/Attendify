@@ -59,6 +59,18 @@ const MonthlyAttendanceReport: React.FC = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
+  const normalizeRecordId = (value: unknown): string => {
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object') {
+      const maybeOid = (value as { $oid?: unknown }).$oid;
+      if (typeof maybeOid === 'string') return maybeOid;
+
+      const maybeToString = (value as { toString?: unknown }).toString;
+      if (typeof maybeToString === 'function') return String(maybeToString.call(value));
+    }
+    return '';
+  };
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -79,7 +91,14 @@ const MonthlyAttendanceReport: React.FC = () => {
       const historyRes = await fetch(`/api/attendance/history?month=${selectedMonth}&year=${selectedYear}`);
       if (historyRes.ok) {
         const historyData = await historyRes.json();
-        setRecords(historyData.records);
+        const normalized: AttendanceRecord[] = (historyData.records || [])
+          .map((r: any) => ({
+            ...r,
+            _id: normalizeRecordId(r?._id),
+          }))
+          .filter((r: AttendanceRecord) => r._id);
+
+        setRecords(normalized);
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -192,7 +211,13 @@ const MonthlyAttendanceReport: React.FC = () => {
   };
 
   const openEditModal = (record: AttendanceRecord) => {
-    setEditRecordId(record._id);
+    const id = normalizeRecordId((record as any)?._id);
+    if (!id) {
+      alert('Invalid record id');
+      return;
+    }
+
+    setEditRecordId(id);
     setEditForm({
       date: toDateInputValue(record.checkIn),
       checkInTime: toTimeInputValue(record.checkIn),
@@ -231,9 +256,15 @@ const MonthlyAttendanceReport: React.FC = () => {
   };
 
   const handleDelete = async (record: AttendanceRecord) => {
-    setDeleteLoadingId(record._id);
+    const id = normalizeRecordId((record as any)?._id);
+    if (!id) {
+      alert('Invalid record id');
+      return;
+    }
+
+    setDeleteLoadingId(id);
     try {
-      const res = await fetch(`/api/attendance/record/${record._id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/attendance/record/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
         alert(data.message || 'Failed to delete entry');
@@ -460,7 +491,7 @@ const MonthlyAttendanceReport: React.FC = () => {
 
       {/* Manual Entry Modal */}
       {isManualModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm reports-datetime-white-icons">
           <div className="bg-[#1c2127] border border-[#3b4754] rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-[#3b4754] bg-[#20262e]">
               <h3 className="text-white font-bold text-lg">Add Manual Attendance</h3>
@@ -541,7 +572,7 @@ const MonthlyAttendanceReport: React.FC = () => {
 
       {/* Edit Manual Entry Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm reports-datetime-white-icons">
           <div className="bg-[#1c2127] border border-[#3b4754] rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-[#3b4754] bg-[#20262e]">
               <h3 className="text-white font-bold text-lg">Edit Manual Attendance</h3>
@@ -660,6 +691,15 @@ const MonthlyAttendanceReport: React.FC = () => {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        /* Make the native calendar/clock indicator icons white (Chromium/WebKit). Scoped to Reports modals only. */
+        .reports-datetime-white-icons input[type='date']::-webkit-calendar-picker-indicator,
+        .reports-datetime-white-icons input[type='time']::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          opacity: 1;
+        }
+      `}</style>
     </div>
   );
 };
