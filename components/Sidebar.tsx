@@ -146,14 +146,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
               <div className="h-[1px] bg-[#283039] mx-2 my-1"></div>
 
               {/* Menu: Logout */}
-              <Link
-                href="/"
-                onClick={() => setIsUserMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-[#283039] transition-colors"
+              <button
+                onClick={async () => {
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/auth/login'; // Force full reload/redirect
+                  } catch (error) {
+                    console.error('Logout failed:', error);
+                  }
+                  setIsUserMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-[#283039] transition-colors"
               >
                 <span className="material-symbols-outlined text-[20px]">logout</span>
                 Logout
-              </Link>
+              </button>
             </div>
           </div>
 
