@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface AttendanceRecord {
@@ -39,6 +39,19 @@ const MonthlyAttendanceReport: React.FC = () => {
     notes: ''
   });
 
+  // Edit/Delete State (manual records only)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editRecordId, setEditRecordId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    checkInTime: '09:00',
+    checkOutTime: '17:00',
+    notes: ''
+  });
+  const [deleteConfirmRecord, setDeleteConfirmRecord] = useState<AttendanceRecord | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -46,7 +59,7 @@ const MonthlyAttendanceReport: React.FC = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const statsRes = await fetch('/api/dashboard/stats');
@@ -73,11 +86,11 @@ const MonthlyAttendanceReport: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router, selectedMonth, selectedYear]);
 
   useEffect(() => {
     fetchData();
-  }, [selectedMonth, selectedYear]);
+  }, [fetchData]);
 
   const handleFilterApply = () => {
     fetchData();
@@ -141,6 +154,21 @@ const MonthlyAttendanceReport: React.FC = () => {
     return new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const toDateInputValue = (isoString: string) => {
+    const d = new Date(isoString);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const toTimeInputValue = (isoString: string) => {
+    const d = new Date(isoString);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
     return {
@@ -161,6 +189,64 @@ const MonthlyAttendanceReport: React.FC = () => {
     const h = Math.floor(absMins / 60);
     const m = absMins % 60;
     return `${mins >= 0 ? '+' : '-'}${h}h ${m.toString().padStart(2, '0')}m`;
+  };
+
+  const openEditModal = (record: AttendanceRecord) => {
+    setEditRecordId(record._id);
+    setEditForm({
+      date: toDateInputValue(record.checkIn),
+      checkInTime: toTimeInputValue(record.checkIn),
+      checkOutTime: record.checkOut ? toTimeInputValue(record.checkOut) : '17:00',
+      notes: record.notes || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editRecordId) return;
+    setEditLoading(true);
+    try {
+      const res = await fetch(`/api/attendance/record/${editRecordId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.message || 'Failed to update entry');
+        return;
+      }
+
+      setIsEditModalOpen(false);
+      setEditRecordId(null);
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      alert('Error updating entry');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDelete = async (record: AttendanceRecord) => {
+    setDeleteLoadingId(record._id);
+    try {
+      const res = await fetch(`/api/attendance/record/${record._id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete entry');
+        return;
+      }
+      setDeleteConfirmRecord(null);
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      alert('Error deleting entry');
+    } finally {
+      setDeleteLoadingId(null);
+    }
   };
 
   return (
@@ -249,12 +335,13 @@ const MonthlyAttendanceReport: React.FC = () => {
                         <th className="py-3 px-6 text-xs font-semibold text-[#9dabb9] uppercase tracking-wider border-b border-[#3b4754]">Notes</th>
                         <th className="py-3 px-6 text-xs font-semibold text-[#9dabb9] uppercase tracking-wider border-b border-[#3b4754] text-right">Total Hours</th>
                         <th className="py-3 px-6 text-xs font-semibold text-[#9dabb9] uppercase tracking-wider border-b border-[#3b4754] text-center">Status</th>
+                        <th className="py-3 px-6 text-xs font-semibold text-[#9dabb9] uppercase tracking-wider border-b border-[#3b4754] text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#2d3642]">
                       {records.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-gray-500">No attendance records found for this period.</td>
+                          <td colSpan={7} className="py-8 text-center text-gray-500">No attendance records found for this period.</td>
                         </tr>
                       ) : (
                         records.map((record) => {
@@ -288,6 +375,35 @@ const MonthlyAttendanceReport: React.FC = () => {
                                   <span className={`w-1.5 h-1.5 rounded-full ${record.status === 'Valid' || record.status === 'Present' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
                                   {record.status}
                                 </span>
+                              </td>
+                              <td className="py-4 px-6 text-right">
+                                {record.isManual ? (
+                                  <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditModal(record)}
+                                      className="inline-flex items-center justify-center rounded-lg border border-[#3b4754] bg-[#111418] hover:bg-[#2d3642] text-white w-9 h-9 transition-colors"
+                                      title="Edit manual entry"
+                                    >
+                                      <Pencil size={16} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteConfirmRecord(record)}
+                                      disabled={deleteLoadingId === record._id}
+                                      className="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-300 w-9 h-9 transition-colors disabled:opacity-60"
+                                      title="Delete manual entry"
+                                    >
+                                      {deleteLoadingId === record._id ? (
+                                        <Loader2 className="animate-spin" size={16} />
+                                      ) : (
+                                        <Trash2 size={16} />
+                                      )}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[#637588] text-sm">-</span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -419,6 +535,128 @@ const MonthlyAttendanceReport: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Manual Entry Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1c2127] border border-[#3b4754] rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[#3b4754] bg-[#20262e]">
+              <h3 className="text-white font-bold text-lg">Edit Manual Attendance</h3>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-[#9dabb9] hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="p-6 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-[#9dabb9]">Date</label>
+                <input
+                  type="date"
+                  required
+                  value={editForm.date}
+                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                  className="bg-[#111418] border border-[#3b4754] text-white rounded-lg px-3 py-2.5 focus:border-[#137fec] outline-none transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-[#9dabb9]">Check In</label>
+                  <input
+                    type="time"
+                    required
+                    value={editForm.checkInTime}
+                    onChange={(e) => setEditForm({ ...editForm, checkInTime: e.target.value })}
+                    className="bg-[#111418] border border-[#3b4754] text-white rounded-lg px-3 py-2.5 focus:border-[#137fec] outline-none transition-all"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-[#9dabb9]">Check Out</label>
+                  <input
+                    type="time"
+                    required
+                    value={editForm.checkOutTime}
+                    onChange={(e) => setEditForm({ ...editForm, checkOutTime: e.target.value })}
+                    className="bg-[#111418] border border-[#3b4754] text-white rounded-lg px-3 py-2.5 focus:border-[#137fec] outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-[#9dabb9]">Notes</label>
+                <textarea
+                  rows={3}
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  placeholder="Reason for manual entry..."
+                  className="bg-[#111418] border border-[#3b4754] text-white rounded-lg px-3 py-2.5 focus:border-[#137fec] outline-none transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="flex-1 bg-transparent border border-[#3b4754] text-[#9dabb9] hover:text-white hover:bg-[#2d3642] py-2.5 rounded-lg font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="flex-1 bg-[#137fec] hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-70 flex justify-center items-center"
+                >
+                  {editLoading ? <Loader2 className="animate-spin size-5" /> : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirmRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1c2127] border border-[#3b4754] rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[#3b4754] bg-[#20262e]">
+              <h3 className="text-white font-bold text-lg">Delete Manual Entry</h3>
+              <button
+                onClick={() => setDeleteConfirmRecord(null)}
+                className="text-[#9dabb9] hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-[#cfd8e3] text-sm">
+                This will permanently delete the selected manual attendance entry. This action cannot be undone.
+              </p>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmRecord(null)}
+                  className="flex-1 bg-transparent border border-[#3b4754] text-[#9dabb9] hover:text-white hover:bg-[#2d3642] py-2.5 rounded-lg font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(deleteConfirmRecord)}
+                  disabled={deleteLoadingId === deleteConfirmRecord._id}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-red-900/20 disabled:opacity-70 flex justify-center items-center"
+                >
+                  {deleteLoadingId === deleteConfirmRecord._id ? <Loader2 className="animate-spin size-5" /> : "Delete"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
