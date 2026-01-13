@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
         // Set cookie
         const cookieStore = await cookies();
-        cookieStore.set('token', token, {
+        cookieStore.set('attendify_token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',

@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
         // Auth Check
         const cookieStore = await cookies();
-        const token = cookieStore.get('token')?.value;
+        const token = cookieStore.get('attendify_token')?.value;
 
         if (!token) {
             console.warn("[Stats API] Check failed: No token found");

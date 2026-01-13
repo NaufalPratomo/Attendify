@@ -38,7 +38,7 @@ function computeDurationAndStatus(checkIn: Date, checkOut?: Date) {
 
 async function requireUser() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value;
+  const token = cookieStore.get('attendify_token')?.value;
   if (!token) return null;
   const payload = await verifyToken(token);
   if (!payload?.userId) return null;
