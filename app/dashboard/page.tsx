@@ -21,6 +21,7 @@ interface DashboardStats {
   recentActivity: RecentActivity[];
   userName: string;
   userEmail: string;
+  userAvatar?: string;
   monthlyTargetMinutes: number;
   yearlyTargetMinutes: number;
 }
@@ -29,6 +30,7 @@ const AttendifyDashboard: React.FC = () => {
   const router = useRouter(); // Import useRouter at top
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<'checkIn' | 'checkOut' | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     currentMinutes: 0,
     yearlyMinutes: 0,
@@ -86,7 +88,7 @@ const AttendifyDashboard: React.FC = () => {
 
   const handleCheckIn = async () => {
     try {
-      setLoading(true);
+      setActionLoading('checkIn');
       const res = await fetch('/api/attendance/check-in', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
@@ -97,13 +99,13 @@ const AttendifyDashboard: React.FC = () => {
     } catch (error) {
       alert("Check-in failed");
     } finally {
-      setLoading(false);
+      setActionLoading(null);
     }
   };
 
   const handleCheckOut = async () => {
     try {
-      setLoading(true);
+      setActionLoading('checkOut');
       const res = await fetch('/api/attendance/check-out', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
@@ -114,7 +116,7 @@ const AttendifyDashboard: React.FC = () => {
     } catch (error) {
       alert("Check-out failed");
     } finally {
-      setLoading(false);
+      setActionLoading(null);
     }
   };
 
@@ -134,7 +136,8 @@ const AttendifyDashboard: React.FC = () => {
           onClose={() => setIsSidebarOpen(false)}
           user={{
             name: stats.userName,
-            email: stats.userEmail
+            email: stats.userEmail,
+            avatar: stats.userAvatar
           }}
         />
 
@@ -173,34 +176,52 @@ const AttendifyDashboard: React.FC = () => {
                 {/* Check In Button */}
                 <button
                   onClick={handleCheckIn}
-                  disabled={stats.todayStatus !== 'none'}
-                  className={`group relative flex h-24 sm:h-20 w-full flex-1 items-center justify-center gap-5 sm:gap-4 overflow-hidden rounded-2xl px-10 sm:px-8 shadow-xl transition-all active:scale-95 ${stats.todayStatus === 'none'
+                  disabled={stats.todayStatus !== 'none' || actionLoading === 'checkIn'}
+                  className={`group relative flex h-24 sm:h-20 w-full flex-1 items-center justify-center gap-5 sm:gap-4 overflow-hidden rounded-2xl px-10 sm:px-8 shadow-xl transition-all active:scale-95 ${stats.todayStatus === 'none' && actionLoading !== 'checkIn'
                     ? 'bg-[#137fec] shadow-[#137fec]/20 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#137fec]/30'
                     : 'bg-gray-700 cursor-not-allowed opacity-50'
                     }`}
                 >
                   <div className="absolute inset-0 bg-linear-to-r from-white/0 via-white/10 to-white/0 opacity-0 transition-opacity group-hover:opacity-100"></div>
-                  <span className="material-symbols-outlined text-5xl sm:text-4xl text-white">
-                    login
-                  </span>
-                  <span className="text-xl pb-2 pt-2 sm:text-2xl font-bold text-white">Check In</span>
+                  {actionLoading === 'checkIn' ? (
+                    <>
+                      <Loader2 className="animate-spin size-8 text-white" />
+                      <span className="text-xl pb-2 pt-2 sm:text-2xl font-bold text-white">Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-5xl sm:text-4xl text-white">
+                        login
+                      </span>
+                      <span className="text-xl pb-2 pt-2 sm:text-2xl font-bold text-white">Check In</span>
+                    </>
+                  )}
                 </button>
 
                 {/* Check Out Button */}
                 <button
                   onClick={handleCheckOut}
-                  disabled={stats.todayStatus !== 'checked-in'}
-                  className={`group relative flex h-24 sm:h-20 w-full flex-1 items-center justify-center gap-5 sm:gap-4 overflow-hidden rounded-2xl border border-[#283039] px-10 sm:px-8 transition-all active:scale-95 ${stats.todayStatus === 'checked-in'
+                  disabled={stats.todayStatus !== 'checked-in' || actionLoading === 'checkOut'}
+                  className={`group relative flex h-24 sm:h-20 w-full flex-1 items-center justify-center gap-5 sm:gap-4 overflow-hidden rounded-2xl border border-[#283039] px-10 sm:px-8 transition-all active:scale-95 ${stats.todayStatus === 'checked-in' && actionLoading !== 'checkOut'
                     ? 'bg-[#1c2632] hover:bg-[#232d3b] hover:border-gray-600 cursor-pointer'
                     : 'bg-gray-800 border-gray-700 cursor-not-allowed opacity-50'
                     }`}
                 >
-                  <span className="material-symbols-outlined text-5xl sm:text-4xl text-gray-500">
-                    logout
-                  </span>
-                  <span className="text-xl pb-2 pt-2 sm:text-2xl font-bold text-gray-200">
-                    Check Out
-                  </span>
+                  {actionLoading === 'checkOut' ? (
+                    <>
+                      <Loader2 className="animate-spin size-8 text-gray-400" />
+                      <span className="text-xl pb-2 pt-2 sm:text-2xl font-bold text-gray-200">Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-5xl sm:text-4xl text-gray-500">
+                        logout
+                      </span>
+                      <span className="text-xl pb-2 pt-2 sm:text-2xl font-bold text-gray-200">
+                        Check Out
+                      </span>
+                    </>
+                  )}
                 </button>
               </div>
 

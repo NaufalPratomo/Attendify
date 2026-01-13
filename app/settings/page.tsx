@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 const TargetConfiguration: React.FC = () => {
     const router = useRouter();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [user, setUser] = useState<{ name: string, email: string } | undefined>(undefined);
+    const [user, setUser] = useState<{ name: string, email: string, avatar?: string } | undefined>(undefined);
     interface Settings {
         monthlyTargetBase: number;
         yearlyTarget: number;
@@ -29,7 +30,11 @@ const TargetConfiguration: React.FC = () => {
                     return;
                 }
                 const userData = await userRes.json();
-                setUser({ name: userData.userName, email: userData.userEmail });
+                setUser({
+                    name: userData.userName,
+                    email: userData.userEmail,
+                    avatar: userData.userAvatar
+                });
 
                 // Fetch Settings
                 const settingsRes = await fetch('/api/settings/target');
@@ -150,7 +155,14 @@ const TargetConfiguration: React.FC = () => {
                                             disabled={saving || loading}
                                             className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-[#137fec] hover:bg-blue-600 text-white text-base font-bold leading-normal tracking-[0.015em] transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <span className="truncate">{saving ? "Saving..." : "Save Configuration"}</span>
+                                            <span className="truncate flex items-center justify-center gap-2">
+                                                {saving ? (
+                                                    <>
+                                                        <Loader2 className="animate-spin size-5" />
+                                                        Saving...
+                                                    </>
+                                                ) : "Save Configuration"}
+                                            </span>
                                         </button>
                                     </div>
 

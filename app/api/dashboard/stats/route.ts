@@ -109,6 +109,7 @@ export async function GET(req: Request) {
         return NextResponse.json({
             userName: user.name,
             userEmail: user.email,
+            userAvatar: user.avatar,
             todayStatus,
             currentMinutes,
             yearlyMinutes,

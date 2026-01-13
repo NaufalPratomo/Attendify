@@ -29,7 +29,7 @@ export async function PUT(req: Request) {
         }
 
         const body = await req.json();
-        const { name, email } = body;
+        const { name, email, avatar } = body;
 
         // Validation
         if (!name || !email) {
@@ -45,7 +45,7 @@ export async function PUT(req: Request) {
         // Update User
         const updatedUser = await User.findByIdAndUpdate(
             payload.userId,
-            { name, email },
+            { name, email, avatar },
             { new: true }
         );
 
@@ -57,7 +57,8 @@ export async function PUT(req: Request) {
             message: 'Profile updated successfully',
             user: {
                 name: updatedUser.name,
-                email: updatedUser.email
+                email: updatedUser.email,
+                avatar: updatedUser.avatar
             }
         });
 

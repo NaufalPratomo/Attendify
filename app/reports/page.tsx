@@ -25,12 +25,19 @@ const MonthlyAttendanceReport: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [user, setUser] = useState<{ name: string, email: string } | undefined>(undefined);
+  const [user, setUser] = useState<{ name: string, email: string, avatar?: string } | undefined>(undefined);
   const [targetBase, setTargetBase] = useState(11240);
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterType, setFilterType] = useState("All");
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<AttendanceRecord[]>([]);
 
   // Manual Entry State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -83,7 +90,11 @@ const MonthlyAttendanceReport: React.FC = () => {
         return;
       }
       const statsData = await statsRes.json();
-      setUser({ name: statsData.userName, email: statsData.userEmail });
+      setUser({
+        name: statsData.userName,
+        email: statsData.userEmail,
+        avatar: statsData.userAvatar
+      });
 
       const settingsRes = await fetch('/api/settings/target');
       if (settingsRes.ok) {
@@ -101,7 +112,8 @@ const MonthlyAttendanceReport: React.FC = () => {
           }))
           .filter((r: AttendanceRecord) => r._id);
 
-        setRecords(normalized);
+        setAllRecords(normalized);
+        setFilteredRecords(normalized); // Initially show all
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -115,8 +127,35 @@ const MonthlyAttendanceReport: React.FC = () => {
   }, [fetchData]);
 
   const handleFilterApply = () => {
-    fetchData();
+    let result = [...allRecords];
+
+    // Filter by Status
+    if (filterStatus !== 'All') {
+      result = result.filter(r => r.status === filterStatus);
+    }
+
+    // Filter by Type
+    if (filterType !== 'All') {
+      const isManual = filterType === 'Manual';
+      const isAuto = filterType === 'Auto';
+      if (isManual) result = result.filter(r => r.isManual === true);
+      if (isAuto) result = result.filter(r => !r.isManual);
+    }
+
+    // Safety check: ensure filtering happened
+    if (result.length === 0 && allRecords.length > 0) {
+      // Optional: could alert "No records match" but empty table is fine
+    }
+
+    setFilteredRecords(result);
   };
+
+  useEffect(() => {
+    // When fresh data arrives (e.g. month change), reset filters
+    setFilteredRecords(allRecords);
+    setFilterStatus('All');
+    setFilterType('All');
+  }, [allRecords]);
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +187,7 @@ const MonthlyAttendanceReport: React.FC = () => {
   };
 
   // Calculate Stats
-  const totalMinutes = records.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
+  const totalMinutes = allRecords.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
   const dailyTarget = targetBase / 31;
 
@@ -324,7 +363,7 @@ const MonthlyAttendanceReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col min-w-25">
+                  <div className="flex flex-col min-w-35">
                     <label className="text-white text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1">Year</label>
                     <div className="relative">
                       <select
@@ -348,14 +387,67 @@ const MonthlyAttendanceReport: React.FC = () => {
                     Add Manual
                   </button>
 
-                  <button
-                    onClick={handleFilterApply}
-                    disabled={isLoading}
-                    className="bg-[#137fec] hover:bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors flex items-center gap-2 h-10.5 mt-auto shadow-md shadow-blue-900/20 disabled:opacity-50"
-                  >
-                    {isLoading ? <Loader2 className="animate-spin text-white size-5" /> : <span className="material-symbols-outlined text-[20px]">filter_list</span>}
-                    {isLoading ? "Loading..." : "Filter"}
-                  </button>
+                  {/* Filter Button & Popover */}
+                  <div className="relative mt-auto">
+                    <button
+                      onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                      className="bg-[#137fec] hover:bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors flex items-center gap-2 h-10.5 shadow-md shadow-blue-900/20"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                      Filter
+                    </button>
+
+                    {isFilterMenuOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-[#1c2127] border border-[#3b4754] rounded-xl shadow-2xl p-4 z-50 flex flex-col gap-4">
+                        {/* Status Filter */}
+                        <div className="flex flex-col">
+                          <label className="text-white text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1">Status</label>
+                          <div className="relative">
+                            <select
+                              value={filterStatus}
+                              onChange={(e) => setFilterStatus(e.target.value)}
+                              className="w-full appearance-none rounded-lg border border-[#3b4754] bg-[#111418] text-white py-2.5 px-3 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                              <option value="All">All Statuses</option>
+                              <option value="Valid">Valid</option>
+                              <option value="Short">Short</option>
+                              <option value="Present">Present</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#637588] pointer-events-none text-lg">filter_alt</span>
+                          </div>
+                        </div>
+
+                        {/* Type Filter */}
+                        <div className="flex flex-col">
+                          <label className="text-white text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1">Type</label>
+                          <div className="relative">
+                            <select
+                              value={filterType}
+                              onChange={(e) => setFilterType(e.target.value)}
+                              className="w-full appearance-none rounded-lg border border-[#3b4754] bg-[#111418] text-white py-2.5 px-3 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                              <option value="All">All Types</option>
+                              <option value="Auto">Auto Check-in</option>
+                              <option value="Manual">Manual Entry</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#637588] pointer-events-none text-lg">category</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-[#3b4754]">
+                          <button
+                            onClick={() => {
+                              handleFilterApply();
+                              setIsFilterMenuOpen(false);
+                            }}
+                            className="w-full bg-[#137fec] hover:bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold transition-colors"
+                          >
+                            Apply Filters
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -379,12 +471,12 @@ const MonthlyAttendanceReport: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#2d3642]">
-                      {records.length === 0 ? (
+                      {filteredRecords.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="py-8 text-center text-gray-500">No attendance records found for this period.</td>
                         </tr>
                       ) : (
-                        records.map((record) => {
+                        filteredRecords.map((record) => {
                           const { date, day } = formatDate(record.checkIn);
                           return (
                             <tr key={record._id} className="hover:bg-[#232930] transition-colors group">
@@ -564,7 +656,12 @@ const MonthlyAttendanceReport: React.FC = () => {
                   disabled={manualLoading}
                   className="flex-1 bg-[#137fec] hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-70 flex justify-center items-center"
                 >
-                  {manualLoading ? <Loader2 className="animate-spin size-5" /> : "Save Entry"}
+                  {manualLoading ? (
+                    <>
+                      <Loader2 className="animate-spin size-5 mr-2" />
+                      Saving...
+                    </>
+                  ) : "Save Entry"}
                 </button>
               </div>
             </form>
@@ -642,7 +739,12 @@ const MonthlyAttendanceReport: React.FC = () => {
                   disabled={editLoading}
                   className="flex-1 bg-[#137fec] hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-70 flex justify-center items-center"
                 >
-                  {editLoading ? <Loader2 className="animate-spin size-5" /> : "Save Changes"}
+                  {editLoading ? (
+                    <>
+                      <Loader2 className="animate-spin size-5 mr-2" />
+                      Saving...
+                    </>
+                  ) : "Save Changes"}
                 </button>
               </div>
             </form>
@@ -683,7 +785,12 @@ const MonthlyAttendanceReport: React.FC = () => {
                   disabled={deleteLoadingId === deleteConfirmRecord._id}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-semibold transition-colors shadow-lg shadow-red-900/20 disabled:opacity-70 flex justify-center items-center"
                 >
-                  {deleteLoadingId === deleteConfirmRecord._id ? <Loader2 className="animate-spin size-5" /> : "Delete"}
+                  {deleteLoadingId === deleteConfirmRecord._id ? (
+                    <>
+                      <Loader2 className="animate-spin size-5 mr-2" />
+                      Deleting...
+                    </>
+                  ) : "Delete"}
                 </button>
               </div>
             </div>

@@ -3,18 +3,16 @@
 import React, { useState, useRef, ChangeEvent, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Camera,
   User,
   Mail,
-  Save,
   X,
   Pencil,
   Briefcase,
-  Copy,
-  Check,
+  Loader2,
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 
 interface UserProfile {
@@ -24,6 +22,17 @@ interface UserProfile {
   role: string;
   joinDate: string;
 }
+
+const presetAvatars = [
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Zoe",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Jack",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Loki",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Molly",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Leo",
+  "https://api.dicebear.com/9.x/avataaars/svg?seed=Nala",
+];
 
 const ProfilePage = () => {
   // --- STATE MANAGEMENT ---
@@ -41,6 +50,7 @@ const ProfilePage = () => {
   const [tempProfile, setTempProfile] = useState<UserProfile>(profile);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,7 +65,8 @@ const ProfilePage = () => {
             ...prev,
             name: data.userName,
             email: data.userEmail,
-            avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${data.userName}`
+            // Use saved avatar, or fallback to generated one based on name
+            avatar: data.userAvatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${data.userName}`
           }));
         }
       } catch (e) {
@@ -69,7 +80,7 @@ const ProfilePage = () => {
 
   const openEditModal = () => {
     setTempProfile(profile);
-    setPreviewImage(null);
+    setPreviewImage(profile.avatar); // Initialize preview with current avatar
     setIsEditing(true);
   };
 
@@ -94,6 +105,7 @@ const ProfilePage = () => {
         body: JSON.stringify({
           name: tempProfile.name,
           email: tempProfile.email,
+          avatar: previewImage, // Send the selected or uploaded image URL
         }),
       });
 
@@ -107,11 +119,11 @@ const ProfilePage = () => {
         ...prev,
         name: data.user.name,
         email: data.user.email,
-        avatar: previewImage || prev.avatar,
+        avatar: data.user.avatar || prev.avatar,
       }));
 
       setIsEditing(false);
-      // Optional: Show success feedback
+      // alert("Profile updated successfully!"); // Optional: immediate feedback
     } catch (error: any) {
       console.error("Update failed", error);
       setErrorMessage(error.message);
@@ -125,12 +137,38 @@ const ProfilePage = () => {
     setTempProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewImage(objectUrl);
+    if (!file) return;
+
+    // Optional: Validate file size/type here
+    // if (file.size > 5 * 1024 * 1024) return alert("File too large");
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+
+      const data = await res.json();
+      setPreviewImage(data.url); // Set the returned URL as preview
+
+    } catch (error) {
+      console.error("Upload error", error);
+      alert("Failed to upload image");
+    } finally {
+      setIsUploading(false);
     }
+  };
+
+  const handlePresetSelect = (url: string) => {
+    setPreviewImage(url);
   };
 
   const handleCopyEmail = () => {
@@ -147,7 +185,11 @@ const ProfilePage = () => {
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        user={{ name: profile.name, email: profile.email }}
+        user={{
+          name: profile.name,
+          email: profile.email,
+          avatar: profile.avatar
+        }}
       />
 
       {/* Main Layout Column */}
@@ -209,6 +251,7 @@ const ProfilePage = () => {
                       </p>
                     </div>
                   </div>
+                  {copied ? <span className="text-xs text-green-400 font-bold">Copied!</span> : null}
                 </button>
 
                 {/* Edit Button */}
@@ -231,7 +274,7 @@ const ProfilePage = () => {
             onClick={closeModal}
           >
             <div
-              className="w-full max-w-[420px] bg-[#1a202c] rounded-2xl shadow-2xl border border-white/10 p-6 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300"
+              className="w-full max-w-lg bg-[#1a202c] rounded-2xl shadow-2xl border border-white/10 p-6 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
@@ -245,34 +288,79 @@ const ProfilePage = () => {
               </div>
 
               <form onSubmit={handleSave} className="flex flex-col gap-5">
-                {/* Image Upload */}
-                <div className="flex justify-center">
-                  <div
-                    className="relative group cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div className="size-24 rounded-full border-2 border-dashed border-gray-500 p-1 group-hover:border-blue-500 transition-colors">
+                {/* Profile Photo Selection */}
+                <div className="flex flex-col gap-4">
+                  <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Profile Photo</label>
+
+                  {/* Current Preview */}
+                  <div className="flex justify-center mb-4">
+                    <div className="relative size-24 rounded-full border-4 border-[#2d3748] overflow-hidden shadow-lg">
                       <img
-                        src={previewImage || tempProfile.avatar}
+                        src={previewImage || profile.avatar}
                         alt="Preview"
-                        className="size-full rounded-full object-cover"
+                        className="size-full object-cover"
                       />
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Camera className="text-white w-6 h-6" />
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="animate-spin text-white w-8 h-8" />
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
-                    className="hidden"
-                    accept="image/*"
-                  />
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Upload Custom */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border border-dashed border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-blue-500 hover:bg-white/5 transition-all text-gray-400 hover:text-white"
+                    >
+                      <Upload className="w-6 h-6" />
+                      <span className="text-xs font-semibold">Upload Photo</span>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageChange}
+                        className="hidden"
+                        accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
+                      />
+                    </div>
+
+                    {/* Choose Preset - Just a visual indicator here, real selection below */}
+                    <div className="border border-gray-600 rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-gray-400 opacity-70 cursor-default">
+                      <ImageIcon className="w-6 h-6" />
+                      <span className="text-xs font-semibold">Choose Preset Below</span>
+                    </div>
+                  </div>
+
+                  {/* Presets Grid */}
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-2">Or choose a preset:</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {presetAvatars.map((url, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handlePresetSelect(url)}
+                          className={`relative rounded-full overflow-hidden border-2 transition-all ${previewImage === url
+                            ? 'border-blue-500 scale-100'
+                            : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'
+                            }`}
+                        >
+                          <img src={url} alt={`Avatar ${index}`} className="w-full h-auto bg-gray-800" />
+                          {previewImage === url && (
+                            <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                              {/* Indicator */}
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Form Fields */}
-                <div className="space-y-4">
+                <div className="space-y-4 pt-4 border-t border-white/10">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-400 ml-1">
                       Full Name
@@ -286,22 +374,6 @@ const ProfilePage = () => {
                         placeholder="Full Name"
                       />
                       <User className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-400 ml-1">
-                      Role
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="role"
-                        value={tempProfile.role}
-                        onChange={handleChange}
-                        className="w-full rounded-lg bg-[#0f1218] border border-white/10 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-white px-4 py-2.5 pl-10 outline-none transition-all placeholder:text-gray-600"
-                        placeholder="Role"
-                      />
-                      <Briefcase className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                     </div>
                   </div>
 
@@ -330,7 +402,7 @@ const ProfilePage = () => {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 mt-4 pt-4 border-t border-white/10">
+                <div className="flex gap-3 mt-2">
                   <button
                     type="button"
                     onClick={closeModal}
@@ -341,15 +413,15 @@ const ProfilePage = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSaving}
-                    className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 ${isSaving
-                        ? 'bg-blue-600/50 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                    disabled={isSaving || isUploading}
+                    className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 ${isSaving || isUploading
+                      ? 'bg-blue-600/50 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white'
                       }`}
                   >
                     {isSaving ? (
                       <>
-                        <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Saving...</span>
                       </>
                     ) : (

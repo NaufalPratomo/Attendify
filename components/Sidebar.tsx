@@ -10,6 +10,7 @@ interface SidebarProps {
   user?: {
     name: string;
     email: string;
+    avatar?: string;
   };
 }
 
@@ -170,8 +171,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
             className={`w-full flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all duration-200 text-left ${isUserMenuOpen ? 'bg-[#1c2632]' : 'hover:bg-[#1c2632]'
               }`}
           >
-            <div className="size-10 rounded-full bg-[#6366f1] flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg shadow-indigo-500/20">
-              {getInitials(user?.name)}
+            <div className="size-10 rounded-full bg-[#6366f1] flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg shadow-indigo-500/20 overflow-hidden">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="size-full object-cover"
+                />
+              ) : (
+                getInitials(user?.name)
+              )}
             </div>
             <div className="overflow-hidden flex-1">
               <p className="text-sm font-semibold text-white truncate">{user?.name || 'Loading...'}</p>
