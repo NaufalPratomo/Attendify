@@ -5,10 +5,19 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import mongoose from 'mongoose';
 
-function buildDateTime(date: string, time: string) {
+function buildDateTime(date: string, time: string, tzOffsetMinutes?: number) {
   // date: YYYY-MM-DD, time: HH:mm
   const [year, month, day] = date.split('-').map(Number);
   const [hour, minute] = time.split(':').map(Number);
+
+  // When tzOffsetMinutes is provided, interpret the input time as the user's local time.
+  // tzOffsetMinutes follows JS Date.getTimezoneOffset(): minutes to add to local time to get UTC.
+  if (typeof tzOffsetMinutes === 'number' && Number.isFinite(tzOffsetMinutes)) {
+    const utcMillis = Date.UTC(year, month - 1, day, hour, minute) + tzOffsetMinutes * 60_000;
+    return new Date(utcMillis);
+  }
+
+  // Fallback: previous behavior (server local timezone).
   return new Date(year, month - 1, day, hour, minute);
 }
 
@@ -47,7 +56,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const payload = await requireUser();
     if (!payload) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-    const { date, checkInTime, checkOutTime, notes } = await req.json();
+    const { date, checkInTime, checkOutTime, notes, tzOffsetMinutes } = await req.json();
 
     if (!date || !checkInTime) {
       return NextResponse.json({ message: 'Date and Check-in time are required' }, { status: 400 });
@@ -61,8 +70,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ message: 'Only manual records can be edited' }, { status: 403 });
     }
 
-    const checkInDate = buildDateTime(date, checkInTime);
-    const checkOutDate = checkOutTime ? buildDateTime(date, checkOutTime) : undefined;
+    const tzOffset = Number.isFinite(tzOffsetMinutes) ? Number(tzOffsetMinutes) : undefined;
+    const checkInDate = buildDateTime(date, checkInTime, tzOffset);
+    const checkOutDate = checkOutTime ? buildDateTime(date, checkOutTime, tzOffset) : undefined;
 
     const computed = computeDurationAndStatus(checkInDate, checkOutDate);
     if ('error' in computed) {

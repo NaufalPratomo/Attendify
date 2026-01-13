@@ -122,7 +122,10 @@ const MonthlyAttendanceReport: React.FC = () => {
       const res = await fetch('/api/attendance/manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(manualForm)
+        body: JSON.stringify({
+          ...manualForm,
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
+        })
       });
 
       if (!res.ok) {
@@ -235,7 +238,10 @@ const MonthlyAttendanceReport: React.FC = () => {
       const res = await fetch(`/api/attendance/record/${editRecordId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify({
+          ...editForm,
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
+        })
       });
 
       if (!res.ok) {

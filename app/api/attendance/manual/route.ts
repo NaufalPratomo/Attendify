@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         }
 
         // 2. Parse Body
-        const { date, checkInTime, checkOutTime, notes } = await req.json();
+        const { date, checkInTime, checkOutTime, notes, tzOffsetMinutes } = await req.json();
 
         if (!date || !checkInTime) {
             return NextResponse.json({ message: 'Date and Check-in time are required' }, { status: 400 });
@@ -32,8 +32,21 @@ export async function POST(req: Request) {
         // date is "YYYY-MM-DD", time is "HH:mm"
         const [year, month, day] = date.split('-').map(Number);
 
+        const tzOffset = Number.isFinite(tzOffsetMinutes) ? Number(tzOffsetMinutes) : undefined;
+
+        const buildFromClientTz = (h: number, m: number) => {
+            // When tzOffset is provided, interpret the input as the user's local time.
+            // tzOffsetMinutes follows JS Date.getTimezoneOffset(): minutes to add to local time to get UTC.
+            if (typeof tzOffset === 'number') {
+                const utcMillis = Date.UTC(year, month - 1, day, h, m) + tzOffset * 60_000;
+                return new Date(utcMillis);
+            }
+            // Fallback: previous behavior (server local timezone).
+            return new Date(year, month - 1, day, h, m);
+        };
+
         const [inHour, inMinute] = checkInTime.split(':').map(Number);
-        const checkInDate = new Date(year, month - 1, day, inHour, inMinute);
+        const checkInDate = buildFromClientTz(inHour, inMinute);
 
         let checkOutDate = undefined;
         let durationMinutes = 0;
@@ -41,7 +54,7 @@ export async function POST(req: Request) {
 
         if (checkOutTime) {
             const [outHour, outMinute] = checkOutTime.split(':').map(Number);
-            checkOutDate = new Date(year, month - 1, day, outHour, outMinute);
+            checkOutDate = buildFromClientTz(outHour, outMinute);
 
             // Calculate duration
             const diffMs = checkOutDate.getTime() - checkInDate.getTime();
