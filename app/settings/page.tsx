@@ -14,17 +14,15 @@ const TargetConfiguration: React.FC = () => {
     const [user, setUser] = useState<{ name: string, email: string, avatar?: string } | undefined>(undefined);
     interface Settings {
         monthlyTargetBase: number;
-        yearlyTarget: number;
     }
     const [settings, setSettings] = useState<Settings>({
-        monthlyTargetBase: 11240,
-        yearlyTarget: 134880
+        monthlyTargetBase: 11240
     });
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch User (reuse dashboard stats for now or create distinct auth endpoint)
+                // Fetch User
                 const userRes = await fetch('/api/dashboard/stats');
                 if (userRes.status === 401) {
                     router.push('/auth/login');
@@ -64,7 +62,7 @@ const TargetConfiguration: React.FC = () => {
             });
 
             if (res.ok) {
-                toast.success("Settings saved successfully!", { id: toastId });
+                toast.success("Daily target saved successfully!", { id: toastId });
             } else {
                 toast.error("Failed to save settings", { id: toastId });
             }
@@ -98,7 +96,7 @@ const TargetConfiguration: React.FC = () => {
                                     <div className="absolute inset-0 bg-linear-to-t from-[#111418] to-transparent"></div>
                                     <div className="absolute inset-0 flex flex-col justify-end p-6 z-10">
                                         <h2 className="text-white tracking-tight text-3xl font-bold leading-tight">Configure Targets</h2>
-                                        <p className="text-[#9dabb9] text-base font-medium leading-normal mt-1">Define your productivity goals for the upcoming period.</p>
+                                        <p className="text-[#9dabb9] text-base font-medium leading-normal mt-1">Define your daily productivity goal.</p>
                                     </div>
                                     {/* Decorative abstract shape */}
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-[#137fec]/20 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -110,7 +108,7 @@ const TargetConfiguration: React.FC = () => {
                                     {/* Input Fields */}
                                     <div className="flex flex-col gap-5">
                                         <label className="flex flex-col flex-1">
-                                            <p className="text-white text-base font-medium leading-normal pb-2">Monthly Target Base (31 Days)</p>
+                                            <p className="text-white text-base font-medium leading-normal pb-2">Monthly Target (minutes)</p>
                                             <div className="relative">
                                                 <input
                                                     className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-[#137fec]/50 border border-[#3b4754] bg-[#1c2127] focus:border-[#137fec] h-14 placeholder:text-[#9dabb9] p-3.75 pl-12 text-base font-normal leading-normal transition-all"
@@ -123,22 +121,9 @@ const TargetConfiguration: React.FC = () => {
                                                     <span className="material-symbols-outlined text-[20px]">calendar_month</span>
                                                 </div>
                                             </div>
-                                        </label>
-
-                                        <label className="flex flex-col flex-1">
-                                            <p className="text-white text-base font-medium leading-normal pb-2">Yearly Target (minutes)</p>
-                                            <div className="relative">
-                                                <input
-                                                    className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-2 focus:ring-[#137fec]/50 border border-[#3b4754] bg-[#1c2127] focus:border-[#137fec] h-14 placeholder:text-[#9dabb9] p-3.75 pl-12 text-base font-normal leading-normal transition-all"
-                                                    type="number"
-                                                    value={settings.yearlyTarget}
-                                                    onChange={(e) => setSettings({ ...settings, yearlyTarget: parseInt(e.target.value) || 0 })}
-                                                    disabled={loading}
-                                                />
-                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9dabb9]">
-                                                    <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-                                                </div>
-                                            </div>
+                                            <p className="text-[#9dabb9] text-xs pt-1.5 pl-1">
+                                                Default: 11,240 minutes.
+                                            </p>
                                         </label>
                                     </div>
 
@@ -146,7 +131,7 @@ const TargetConfiguration: React.FC = () => {
                                     <div className="bg-[#1c2127] rounded-lg p-4 border border-[#283039] flex gap-3 items-start">
                                         <span className="material-symbols-outlined text-[#137fec] text-[20px] mt-0.5">info</span>
                                         <p className="text-[#9dabb9] text-sm font-normal leading-relaxed">
-                                            Changes will affect how surplus and deficits are calculated on your dashboard and reports.
+                                            Your daily target will be automatically calculated by dividing this monthly goal by the number of working days (Mon-Sat) in the current month.
                                         </p>
                                     </div>
 

@@ -19,8 +19,7 @@ export async function GET(req: Request) {
         if (!user) return NextResponse.json({ message: 'User not found' }, { status: 404 });
 
         return NextResponse.json({
-            monthlyTargetBase: user.monthlyTargetBase || 11240,
-            yearlyTarget: user.yearlyTarget || 134880
+            monthlyTargetBase: user.monthlyTargetBase || 11240
         });
     } catch (error) {
         return NextResponse.json({ message: 'Error fetching settings' }, { status: 500 });
@@ -33,16 +32,17 @@ export async function POST(req: Request) {
 
         // Auth Check
         const cookieStore = await cookies();
-        const token = cookieStore.get('token')?.value;
+        const token = cookieStore.get('attendify_token')?.value;
         if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         const payload = await verifyToken(token);
         if (!payload) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-        const { monthlyTargetBase, yearlyTarget } = await req.json();
+        const { monthlyTargetBase } = await req.json();
 
+        // Optional: Recalculate monthly/yearly if we wanted to store them derived
+        // For now just save the user's preference
         await User.findByIdAndUpdate(payload.userId, {
-            monthlyTargetBase,
-            yearlyTarget
+            monthlyTargetBase
         });
 
         return NextResponse.json({ message: 'Settings updated' });

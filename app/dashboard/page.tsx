@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MonthSummaryCard from '@/components/MonthSummaryCard';
+import DailyStatsCard from '@/components/DailyStatsCard';
 import { Loader2 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
@@ -25,10 +26,12 @@ interface DashboardStats {
   userAvatar?: string;
   monthlyTargetMinutes: number;
   yearlyTargetMinutes: number;
+  todayMinutes: number;
+  dailyTargetMinutes: number;
 }
 
 const AttendifyDashboard: React.FC = () => {
-  const router = useRouter(); // Import useRouter at top
+  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<'checkIn' | 'checkOut' | null>(null);
@@ -40,7 +43,9 @@ const AttendifyDashboard: React.FC = () => {
     userName: '',
     userEmail: '',
     monthlyTargetMinutes: 0,
-    yearlyTargetMinutes: 0
+    yearlyTargetMinutes: 0,
+    todayMinutes: 0,
+    dailyTargetMinutes: 0
   });
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -232,48 +237,17 @@ const AttendifyDashboard: React.FC = () => {
 
               {/* Stats Grid */}
               <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
-                {/* Monthly Summary Card */}
+                {/* Daily Status Card (Formerly Monthly) */}
+                <DailyStatsCard
+                  todayMinutes={stats.todayMinutes || 0}
+                  dailyTargetMinutes={stats.dailyTargetMinutes || 0}
+                />
+
+                {/* Monthly Summary Card (Formerly Yearly) */}
                 <MonthSummaryCard
                   currentMinutes={stats.currentMinutes || 0}
                   monthlyTargetMinutes={stats.monthlyTargetMinutes || 0}
                 />
-
-                {/* Yearly Summary Card */}
-                <div className="group relative overflow-hidden rounded-2xl border border-[#283039] bg-[#1c2632] p-6 shadow-sm transition-all hover:shadow-md">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
-                        <span className="material-symbols-outlined">
-                          donut_large
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-400">
-                          Yearly Summary
-                        </p>
-                        <p className="text-xs text-gray-500">FY {new Date().getFullYear()}</p>
-                      </div>
-                    </div>
-
-                  </div>
-                  <div className="mb-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-white">{(stats.yearlyMinutes || 0).toLocaleString()}</span>
-                    <span className="text-sm font-medium text-gray-500">
-                      / {(stats.yearlyTargetMinutes || 0).toLocaleString()} mins
-                    </span>
-                  </div>
-                  {/* Progress Bar */}
-                  <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-gray-800">
-                    <div
-                      className="absolute left-0 top-0 h-full rounded-full bg-indigo-500 transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min(100, ((stats.yearlyMinutes || 0) / (stats.yearlyTargetMinutes || 1)) * 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs font-medium text-gray-400">
-                    <span>{Math.round(((stats.yearlyMinutes || 0) / (stats.yearlyTargetMinutes || 1)) * 100)}% Complete</span>
-                    <span>Target: {(stats.yearlyTargetMinutes || 0).toLocaleString()}</span>
-                  </div>
-                </div>
               </div>
 
               {/* Recent Activity (Dynamic) */}
