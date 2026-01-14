@@ -112,6 +112,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
             <span>Reports</span>
           </Link>
 
+          {/* Log Book Link */}
+          <Link href="/logbook" className={getLinkClass('/logbook')}>
+            <span className={`material-symbols-outlined text-[22px] transition-colors ${pathname === '/logbook' ? 'text-[#137fec]' : 'group-hover:text-white'}`}>
+              menu_book
+            </span>
+            <span>Log Book</span>
+          </Link>
+
           {/* Settings Link */}
           {/* Perhatikan href disini saya samakan dengan pathname yang dicek */}
           <Link href="/settings" className={getLinkClass('/settings')}>
