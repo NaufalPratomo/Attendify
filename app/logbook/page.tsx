@@ -350,6 +350,28 @@ const LogbookPage = () => {
         }
     };
 
+    // View Modal state
+    const [viewingFile, setViewingFile] = useState<{ url: string; name: string; type: string } | null>(null);
+
+    const handleViewClick = (log: LogEntry) => {
+        if (!log.attachmentUrl) return;
+
+        // Determine type roughly (not perfect but works for common extensions)
+        const lowerName = (log.attachmentName || "").toLowerCase();
+        let type = 'unknown';
+        if (lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.gif')) {
+            type = 'image';
+        } else if (lowerName.endsWith('.pdf')) {
+            type = 'pdf';
+        }
+
+        setViewingFile({
+            url: log.attachmentUrl,
+            name: log.attachmentName || "File",
+            type
+        });
+    };
+
     return (
         <div className="bg-[#101922] font-sans text-white antialiased selection:bg-[#137fec]/30 min-h-screen">
             <div className="relative flex min-h-screen flex-col overflow-hidden">
@@ -495,16 +517,15 @@ const LogbookPage = () => {
 
                                                     {log.attachmentUrl && (
                                                         <div className="mt-3">
-                                                            <a
-                                                                href={log.attachmentUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleViewClick(log)}
                                                                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#137fec] bg-[#137fec]/10 border border-[#137fec]/20 rounded-lg hover:bg-[#137fec]/20 transition-colors"
-                                                                title="View Attachment"
+                                                                title="Download/View Attachment"
                                                             >
                                                                 <Eye className="w-3.5 h-3.5" />
                                                                 View {log.attachmentName ? log.attachmentName : "File"}
-                                                            </a>
+                                                            </button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -619,15 +640,14 @@ const LogbookPage = () => {
                                                             </td>
                                                             <td className="px-6 py-4 align-top">
                                                                 {log.attachmentUrl && (
-                                                                    <a
-                                                                        href={log.attachmentUrl}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleViewClick(log)}
                                                                         title={log.attachmentName || "View File"}
                                                                         className="inline-flex items-center justify-center w-8 h-8 text-[#137fec] bg-[#137fec]/10 rounded-lg hover:bg-[#137fec] hover:text-white transition-all"
                                                                     >
                                                                         <Eye className="w-4 h-4" />
-                                                                    </a>
+                                                                    </button>
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right align-top group">
@@ -737,6 +757,44 @@ const LogbookPage = () => {
                                         </button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View File Modal */}
+                    {viewingFile && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-[#1c2632] border border-[#283039] rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl relative">
+                                <div className="p-4 border-b border-[#283039] flex items-center justify-between">
+                                    <h3 className="font-semibold text-white truncate max-w-[80%]">{viewingFile.name}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <a
+                                            href={viewingFile.url}
+                                            download={viewingFile.name}
+                                            className="p-2 text-gray-400 hover:text-white hover:bg-[#283039] rounded-lg transition-colors"
+                                            title="Download"
+                                        >
+                                            <Download className="w-5 h-5" />
+                                        </a>
+                                        <button
+                                            onClick={() => setViewingFile(null)}
+                                            className="p-2 text-gray-400 hover:text-white hover:bg-[#283039] rounded-lg transition-colors"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex-1 bg-[#101922] p-4 overflow-auto flex items-center justify-center">
+                                    {viewingFile.type === 'image' ? (
+                                        <img src={viewingFile.url} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg shadow-md" />
+                                    ) : (
+                                        <iframe
+                                            src={viewingFile.url}
+                                            className="w-full h-full rounded-lg bg-white"
+                                            title="File Preview"
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
