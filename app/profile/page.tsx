@@ -146,7 +146,10 @@ const ProfilePage = () => {
     if (!file) return;
 
     // Optional: Validate file size/type here
-    // if (file.size > 5 * 1024 * 1024) return alert("File too large");
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File is too large. Max 2MB allowed.");
+      return;
+    }
 
     setIsUploading(true);
     const toastId = toast.loading("Uploading image...");
@@ -337,6 +340,7 @@ const ProfilePage = () => {
                     >
                       <Upload className="w-6 h-6" />
                       <span className="text-xs font-semibold">Upload Photo</span>
+                      <span className="text-[10px] text-gray-500">Max 2MB</span>
                       <input
                         type="file"
                         ref={fileInputRef}

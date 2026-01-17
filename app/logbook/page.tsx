@@ -124,8 +124,8 @@ const LogbookPage = () => {
             formData.append('date', format(selectedDate, 'yyyy-MM-dd'));
             formData.append('activity', newLog);
             if (selectedFile) {
-                if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
-                    toast.error("File size too large (max 5MB)");
+                if (selectedFile.size > 2 * 1024 * 1024) { // 2MB limit
+                    toast.error("File size too large (max 2MB)");
                     setSubmitting(false);
                     return;
                 }
@@ -318,8 +318,8 @@ const LogbookPage = () => {
             formData.append('id', editingLog._id);
             formData.append('activity', editActivity);
             if (editFile) {
-                if (editFile.size > 5 * 1024 * 1024) { // 5MB limit
-                    toast.error("File size too large (max 5MB)");
+                if (editFile.size > 2 * 1024 * 1024) { // 2MB limit
+                    toast.error("File size too large (max 2MB)");
                     setSavingEdit(false);
                     return;
                 }
@@ -466,7 +466,7 @@ const LogbookPage = () => {
                                                 className="flex items-center gap-2 cursor-pointer bg-[#101922] border border-[#283039] hover:border-[#137fec] text-gray-300 px-4 py-2 rounded-lg transition-all text-sm"
                                             >
                                                 <Upload className="w-4 h-4" />
-                                                Attach File
+                                                Attach File <span className="text-xs text-gray-500 ml-1">(Max 2MB)</span>
                                             </label>
                                         </div>
                                         {selectedFile && (
@@ -739,7 +739,7 @@ const LogbookPage = () => {
                                                     className="flex items-center gap-2 cursor-pointer bg-[#101922] border border-[#283039] hover:border-[#137fec] text-gray-300 px-4 py-2 rounded-lg transition-all text-sm"
                                                 >
                                                     <Upload className="w-4 h-4" />
-                                                    Replace File
+                                                    Replace File <span className="text-xs text-gray-500 ml-1">(Max 2MB)</span>
                                                 </label>
                                             </div>
                                             {editFile && (

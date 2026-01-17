@@ -90,6 +90,9 @@ export async function POST(req: Request) {
 
         if (file) {
             console.log("POST: File received:", file.name, file.size);
+            if (file.size > 2 * 1024 * 1024) {
+                return NextResponse.json({ message: 'File too large (max 2MB)' }, { status: 400 });
+            }
             const bytes = await file.arrayBuffer();
             const buffer = Buffer.from(bytes);
 
@@ -170,6 +173,9 @@ export async function PUT(req: Request) {
 
         if (file) {
             console.log("PUT: File received:", file.name);
+            if (file.size > 2 * 1024 * 1024) {
+                return NextResponse.json({ message: 'File too large (max 2MB)' }, { status: 400 });
+            }
             const bytes = await file.arrayBuffer();
             const buffer = Buffer.from(bytes);
 

@@ -10,9 +10,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'No file uploaded' }, { status: 400 });
         }
 
-        // Limit size for profile/avatar upload (e.g. 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            return NextResponse.json({ message: 'File too large (max 5MB)' }, { status: 400 });
+        // Limit size for profile/avatar upload (e.g. 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            return NextResponse.json({ message: 'File too large (max 2MB)' }, { status: 400 });
         }
 
         const bytes = await file.arrayBuffer();
