@@ -84,7 +84,12 @@ export async function GET(req: Request) {
             if (!d) return undefined;
             const dateObj = new Date(d);
             // Basic formatting to HH:mm
-            return dateObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+            return dateObj.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+                timeZone: 'Asia/Jakarta' // Force Jakarta time (WIB) regardless of server timezone
+            });
         };
 
         // Merge logic
