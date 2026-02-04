@@ -3,12 +3,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { Calendar, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Calendar, Download, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from 'date-fns';
 import { toast } from "sonner";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface AttendanceRecord {
   _id: string;
@@ -77,6 +79,9 @@ const MonthlyAttendanceReport: React.FC = () => {
   ];
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
+
+  // PDF Export state
+  const [isExporting, setIsExporting] = useState(false);
 
   const normalizeRecordId = (value: unknown): string => {
     if (typeof value === 'string') return value;
@@ -269,6 +274,98 @@ const MonthlyAttendanceReport: React.FC = () => {
     return `${mins >= 0 ? '+' : '-'}${h}h ${m.toString().padStart(2, '0')}m`;
   };
 
+  // PDF Export Handler
+  const handleExportPDF = () => {
+    if (filteredRecords.length === 0) {
+      toast.error("No records to export");
+      return;
+    }
+
+    setIsExporting(true);
+    const toastId = toast.loading("Generating PDF...");
+
+    try {
+      const doc = new jsPDF();
+
+      // Add Title
+      doc.setFontSize(18);
+      doc.text(`Monthly Attendance Report - ${months[selectedMonth]} ${selectedYear}`, 14, 22);
+
+      // Add User Info
+      doc.setFontSize(11);
+      doc.text(`User: ${user?.name || 'N/A'}`, 14, 30);
+      doc.text(`Email: ${user?.email || 'N/A'}`, 14, 36);
+      doc.text(`Generated: ${format(new Date(), "PPP 'at' HH:mm")}`, 14, 42);
+
+      // Table columns and rows
+      const tableColumn = ["Date", "Day", "Check In", "Check Out", "Duration", "Status"];
+      const tableRows = filteredRecords.map(record => {
+        const recordDate = new Date(record.checkIn);
+        return [
+          format(recordDate, "dd MMM"),
+          format(recordDate, "EEEE"),
+          formatTime(record.checkIn),
+          formatTime(record.checkOut),
+          formatDuration(record.durationMinutes),
+          record.status
+        ];
+      });
+
+      // Generate table
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 50,
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [19, 127, 236], // #137fec
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { cellWidth: 22 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 22 }
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245]
+        }
+      });
+
+      // Add Summary Section
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const finalY = (doc as any).lastAutoTable?.finalY || 150;
+      const summaryY = finalY + 15;
+
+      doc.setFontSize(12);
+      doc.setFont(undefined as unknown as string, 'bold');
+      doc.text("Summary", 14, summaryY);
+
+      doc.setFontSize(10);
+      doc.setFont(undefined as unknown as string, 'normal');
+      doc.text(`Total Realization: ${formatDuration(totalMinutes)}`, 14, summaryY + 8);
+      doc.text(`Monthly Target: ${formatDuration(monthlyTargetMinutes)}`, 14, summaryY + 14);
+      doc.text(`${isTargetReached ? 'Bonus' : 'Correction'}: ${formatSurplus(surplusMinutes)}`, 14, summaryY + 20);
+      doc.text(`Completion: ${percentComplete}%`, 14, summaryY + 26);
+      doc.text(`Status: ${isTargetReached ? 'Target Reached' : 'Target Missed'}`, 14, summaryY + 32);
+
+      // Save the PDF
+      doc.save(`attendance-report-${months[selectedMonth].toLowerCase()}-${selectedYear}.pdf`);
+      toast.success("PDF exported successfully", { id: toastId });
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to export PDF", { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const openEditModal = (record: AttendanceRecord) => {
     const id = normalizeRecordId(record._id);
     if (!id) {
@@ -414,6 +511,20 @@ const MonthlyAttendanceReport: React.FC = () => {
                   >
                     <Plus size={18} />
                     Add Manual
+                  </button>
+
+                  {/* Export PDF Button */}
+                  <button
+                    onClick={handleExportPDF}
+                    disabled={isExporting || filteredRecords.length === 0}
+                    className="bg-[#1c2127] hover:bg-[#2d3642] text-emerald-400 border border-emerald-500/50 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors flex items-center gap-2 h-10.5 mt-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExporting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Download size={18} />
+                    )}
+                    Export PDF
                   </button>
 
                   {/* Filter Button & Popover */}
