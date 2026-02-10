@@ -50,14 +50,13 @@ const ModernTimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, r
 
     // Generate Arrays
     const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-    // 5 Minute intervals for cleaner UI and faster selection
-    const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+    const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
     // Quick Presets
     const setNow = () => {
         const now = new Date();
         const h = String(now.getHours()).padStart(2, '0');
-        const m = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
         setHour(h);
         setMinute(m);
         onChange(`${h}:${m}`);
@@ -109,7 +108,7 @@ const ModernTimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, r
                     {/* Scroll Columns */}
                     <div className="flex h-56">
                         {/* Hours */}
-                        <div className="flex-1 overflow-y-auto scrollbar-none snap-y snap-mandatory bg-[#16191d]">
+                        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-y snap-mandatory bg-[#16191d]">
                             <div className="py-2 px-1 space-y-1">
                                 {hours.map((h) => (
                                     <button
@@ -131,7 +130,7 @@ const ModernTimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, r
                         </div>
 
                         {/* Minutes */}
-                        <div className="flex-1 overflow-y-auto scrollbar-none snap-y snap-mandatory bg-[#16191d] border-l border-[#2d3748]">
+                        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-y snap-mandatory bg-[#16191d] border-l border-[#2d3748]">
                             <div className="py-2 px-1 space-y-1">
                                 {minutes.map((m) => (
                                     <button

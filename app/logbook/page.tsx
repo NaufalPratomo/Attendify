@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Calendar as CalendarIcon, Upload, FileText, Download, X, Eye, FileSpreadsheet, File } from 'lucide-react';
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import ModernTimePicker from '@/components/ui/ModernTimePicker';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
@@ -504,29 +505,17 @@ const LogbookPage = () => {
                                         />
                                     </div>
 
-                                    <div className="flex gap-4 mb-4">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-medium text-gray-400 mb-2">
-                                                Check In
-                                            </label>
-                                            <input
-                                                type="time"
-                                                value={checkInTime}
-                                                onChange={(e) => setCheckInTime(e.target.value)}
-                                                className="w-full bg-[#101922] border border-[#283039] rounded-xl p-4 text-white outline-none focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] transition-all"
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-medium text-gray-400 mb-2">
-                                                Check Out
-                                            </label>
-                                            <input
-                                                type="time"
-                                                value={checkOutTime}
-                                                onChange={(e) => setCheckOutTime(e.target.value)}
-                                                className="w-full bg-[#101922] border border-[#283039] rounded-xl p-4 text-white outline-none focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] transition-all"
-                                            />
-                                        </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <ModernTimePicker
+                                            label="Check In"
+                                            value={checkInTime}
+                                            onChange={setCheckInTime}
+                                        />
+                                        <ModernTimePicker
+                                            label="Check Out"
+                                            value={checkOutTime}
+                                            onChange={setCheckOutTime}
+                                        />
                                     </div>
 
                                     {/* File Input */}
@@ -848,29 +837,17 @@ const LogbookPage = () => {
                                                 className="w-full bg-[#101922] border border-[#283039] rounded-xl p-4 text-white min-h-[120px] outline-none focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] transition-all resize-none placeholder:text-gray-600"
                                             />
                                         </div>
-                                        <div className="flex gap-4 mb-4">
-                                            <div className="flex-1">
-                                                <label className="block text-sm font-medium text-gray-400 mb-2">
-                                                    Check In
-                                                </label>
-                                                <input
-                                                    type="time"
-                                                    value={editCheckIn}
-                                                    onChange={(e) => setEditCheckIn(e.target.value)}
-                                                    className="w-full bg-[#101922] border border-[#283039] rounded-xl p-4 text-white outline-none focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] transition-all"
-                                                />
-                                            </div>
-                                            <div className="flex-1">
-                                                <label className="block text-sm font-medium text-gray-400 mb-2">
-                                                    Check Out
-                                                </label>
-                                                <input
-                                                    type="time"
-                                                    value={editCheckOut}
-                                                    onChange={(e) => setEditCheckOut(e.target.value)}
-                                                    className="w-full bg-[#101922] border border-[#283039] rounded-xl p-4 text-white outline-none focus:border-[#137fec] focus:ring-1 focus:ring-[#137fec] transition-all"
-                                                />
-                                            </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <ModernTimePicker
+                                                label="Check In"
+                                                value={editCheckIn}
+                                                onChange={setEditCheckIn}
+                                            />
+                                            <ModernTimePicker
+                                                label="Check Out"
+                                                value={editCheckOut}
+                                                onChange={setEditCheckOut}
+                                            />
                                         </div>
                                         <div className="mb-6">
                                             <label className="block text-sm font-medium text-gray-400 mb-2">
