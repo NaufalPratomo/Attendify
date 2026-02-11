@@ -257,8 +257,8 @@ const LogbookPage = () => {
             },
             columnStyles: {
                 0: { cellWidth: 30 },
-                1: { cellWidth: 25 },
-                2: { cellWidth: 25 },
+                1: { cellWidth: 25, halign: 'center' },
+                2: { cellWidth: 25, halign: 'center' },
                 3: { cellWidth: 'auto' },
             },
             alternateRowStyles: {
