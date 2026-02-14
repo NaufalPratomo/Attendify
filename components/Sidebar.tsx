@@ -128,6 +128,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
             </span>
             <span>Settings</span>
           </Link>
+
+          {/* Holidays Link */}
+          <Link href="/settings/holidays" className={getLinkClass('/settings/holidays')}>
+            <span className={`material-symbols-outlined text-[22px] transition-colors ${pathname === '/settings/holidays' ? 'text-[#137fec]' : 'group-hover:text-white'}`}>
+              calendar_month
+            </span>
+            <span>Holidays</span>
+          </Link>
         </nav>
 
         {/* Footer (User Profile & Drop Up Menu) */}

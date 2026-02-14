@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db';
 import User from '@/models/User';
 import Attendance from '@/models/Attendance';
+import Holiday from '@/models/Holiday';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
@@ -123,30 +124,43 @@ export async function GET(req: Request) {
                 .sort({ checkIn: -1 })
                 .limit(5);
 
-            // Dynamic Target
-            // User inputs 'monthlyTargetBase' (e.g. 11240)
-            const monthlyTargetBase = user.monthlyTargetBase || 11240;
-            dynamicMonthlyTarget = monthlyTargetBase;
+            // Daily Target from user settings
+            const dailyTarget = user.dailyTarget || 480;
 
-            // Calculate Working Days in current month (Mon-Sat, exclude Sundays)
+            // Fetch holidays for this month (GLOBAL + PERSONAL for this user)
+            const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+            const yearStr = String(now.getFullYear());
+            const startDateStr = `${yearStr}-${monthStr}-01`;
+            const endDateStr = `${yearStr}-${monthStr}-31`;
+
+            const holidays = await Holiday.find({
+                dateString: { $gte: startDateStr, $lte: endDateStr },
+                $or: [
+                    { type: 'GLOBAL' },
+                    { type: 'PERSONAL', userId: user._id }
+                ]
+            });
+
+            // Build a Set of holiday dateStrings for O(1) lookup
+            const holidayDateSet = new Set(holidays.map((h: any) => h.dateString as string));
+
+            // Calculate Working Days: exclude Sundays AND holidays
             const tempDate = new Date(startOfMonth);
             while (tempDate <= endOfMonth) {
-                // 0 = Sunday, 1 = Monday, ... 6 = Saturday
-                if (tempDate.getDay() !== 0) {
+                const dayOfWeek = tempDate.getDay();
+                // Build dateString for this day
+                const ds = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+
+                if (dayOfWeek !== 0 && !holidayDateSet.has(ds)) {
                     workingDaysCount++;
                 }
                 tempDate.setDate(tempDate.getDate() + 1);
             }
 
-            // Daily Target derived from Monthly Target / Working Days
-            // e.g., 11240 / 26 = ~432 mins
-            // However, user prompt implies "Weekly target 2880 / 6 = 480". 
-            // If they input 11240, and days are 26, it's 432.
-            // If they strictly want 480, they must input a higher monthly target (12480).
-            // We implement the strict math as requested: "daily target can adjust based on input given".
-            const dailyTarget = user.dailyTarget || 480;
+            // Dynamic Monthly Target = working days * daily target
+            dynamicMonthlyTarget = workingDaysCount * dailyTarget;
 
-            console.log("[Stats API] Stats gathered successfully. Working days:", workingDaysCount, "Daily Target:", dailyTarget);
+            console.log("[Stats API] Stats gathered successfully. Working days:", workingDaysCount, "Holidays:", holidayDateSet.size, "Dynamic target:", dynamicMonthlyTarget);
 
         } catch (statsError) {
             console.error("[Stats API] Error calculating stats (continuing with defaults):", statsError);
@@ -164,7 +178,8 @@ export async function GET(req: Request) {
             recentActivity,
             dailyTargetMinutes: user.dailyTarget || 480,
             monthlyTargetMinutes: dynamicMonthlyTarget,
-            yearlyTargetMinutes: user.yearlyTarget || 134880
+            yearlyTargetMinutes: user.yearlyTarget || 134880,
+            workingDaysCount
         });
 
     } catch (error: any) {

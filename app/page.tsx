@@ -121,7 +121,6 @@ const AttendifyLanding: React.FC = () => {
               </div>
             </div>
           </footer>
-
         </div>
       </div>
     </div>
