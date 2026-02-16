@@ -262,7 +262,7 @@ export default function HolidaysPage() {
                                         <div className="flex flex-wrap items-center gap-4 mb-5">
                                             <div className="flex items-center gap-2 text-xs text-[#9dabb9]">
                                                 <span className="size-2.5 rounded-full bg-red-500"></span>
-                                                Global Holiday
+                                                National Holiday
                                             </div>
                                             <div className="flex items-center gap-2 text-xs text-[#9dabb9]">
                                                 <span className="size-2.5 rounded-full bg-amber-400"></span>
