@@ -438,7 +438,7 @@ const LogbookPage = () => {
                     user={user}
                 />
 
-                <div className="flex-1 flex flex-col lg:ml-72 transition-all duration-300">
+                <div className="flex-1 flex flex-col lg:mr-72 transition-all duration-300">
                     <Header
                         onMenuClick={() => setIsSidebarOpen(true)}
                         userName={user.name}

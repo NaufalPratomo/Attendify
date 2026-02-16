@@ -72,7 +72,7 @@ const TargetConfiguration: React.FC = () => {
         <div className="bg-[#101922] font-sans text-white antialiased selection:bg-[#137fec]/30 min-h-screen">
             <div className="relative flex min-h-screen flex-col overflow-hidden">
                 <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={user} />
-                <div className="flex-1 flex flex-col lg:ml-72 transition-all duration-300">
+                <div className="flex-1 flex flex-col lg:mr-72 transition-all duration-300">
                     <Header onMenuClick={() => setIsSidebarOpen(true)} userName={user?.name} />
 
                     {/* Main Content Area */}

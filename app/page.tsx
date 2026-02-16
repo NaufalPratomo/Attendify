@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import TextType from '@/components/TextType';
+import { Info, Sparkles, Heart, ChevronRight } from 'lucide-react';
 
 const AttendifyLanding: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -17,7 +18,28 @@ const AttendifyLanding: React.FC = () => {
             <div className="flex w-full items-center justify-between">
               <Image src="/main_logo.png" alt="Attendify Logo" width={200} height={100} className="h-8 md:h-12 w-auto object-contain" />
               {/* Desktop buttons */}
-              <div className="hidden md:flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-1">
+                <Link href="/development">
+                  <button className="relative flex cursor-pointer items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-300 group">
+                    <Info className="size-4 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
+                    About
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-0 bg-blue-500 group-hover:w-3/4 transition-all duration-300 rounded-full" />
+                  </button>
+                </Link>
+                <Link href="/development">
+                  <button className="relative flex cursor-pointer items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-300 group">
+                    <Sparkles className="size-4 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />
+                    Features
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-0 bg-blue-500 group-hover:w-3/4 transition-all duration-300 rounded-full" />
+                  </button>
+                </Link>
+                <Link href="/development">
+                  <button className="relative flex cursor-pointer items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-300 group">
+                    <Heart className="size-4 text-blue-400 group-hover:text-blue-300 group-hover:animate-pulse transition-colors duration-300" />
+                    Support Us
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-0 bg-blue-500 group-hover:w-3/4 transition-all duration-300 rounded-full" />
+                  </button>
+                </Link>
                 <Link href="/auth/login">
                   <button className="flex cursor-pointer items-center justify-center rounded-lg h-10 px-6 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-600/30 hover:-translate-y-0.5 transition-all duration-200">
                     Login
@@ -59,15 +81,33 @@ const AttendifyLanding: React.FC = () => {
                 <span className="material-symbols-outlined text-2xl">close</span>
               </button>
             </div>
-            <div className="flex flex-col justify-center gap-3 px-6 mb-6">
+            <div className="flex flex-col justify-center gap-2 px-4 mb-6">
               <Link href="/development" onClick={() => setMobileMenuOpen(false)}>
-                <button className="flex cursor-pointer">About</button>
+                <button className="w-full flex cursor-pointer items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15 active:scale-[0.98] border border-transparent hover:border-blue-500/30 transition-all duration-300 group">
+                  <span className="flex items-center justify-center size-8 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
+                    <Info className="size-4" />
+                  </span>
+                  About
+                  <ChevronRight className="size-4 ml-auto text-gray-600 group-hover:text-gray-400 group-hover:translate-x-1 transition-all duration-300" />
+                </button>
               </Link>
               <Link href="/development" onClick={() => setMobileMenuOpen(false)}>
-                <button className="flex cursor-pointer">Features</button>
+                <button className="w-full flex cursor-pointer items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15 active:scale-[0.98] border border-transparent hover:border-blue-500/30 transition-all duration-300 group">
+                  <span className="flex items-center justify-center size-8 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
+                    <Sparkles className="size-4" />
+                  </span>
+                  Features
+                  <ChevronRight className="size-4 ml-auto text-gray-600 group-hover:text-gray-400 group-hover:translate-x-1 transition-all duration-300" />
+                </button>
               </Link>
               <Link href="/development" onClick={() => setMobileMenuOpen(false)}>
-                <button className="flex cursor-pointer">Support Us</button>
+                <button className="w-full flex cursor-pointer items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15 active:scale-[0.98] border border-transparent hover:border-blue-500/30 transition-all duration-300 group">
+                  <span className="flex items-center justify-center size-8 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all duration-300">
+                    <Heart className="size-4" />
+                  </span>
+                  Support Us
+                  <ChevronRight className="size-4 ml-auto text-gray-600 group-hover:text-gray-400 group-hover:translate-x-1 transition-all duration-300" />
+                </button>
               </Link>
             </div>
             <div className="flex flex-col gap-3 px-6 mt-auto mb-6">

@@ -77,11 +77,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
 
       {/* 2. Sidebar Panel */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-[#101922] border-r border-[#283039] transform transition-transform duration-300 ease-in-out flex flex-col lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 right-0 z-50 h-full w-72 bg-[#101922] border-l border-[#283039] transform transition-transform duration-300 ease-in-out flex flex-col lg:translate-x-0 ${isOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
       >
         {/* Header & Close Button */}
-        <div className="flex items-start justify-between p-6 shrink-0">
+        <div className="flex items-start justify-between p-5 shrink-0">
           <button
             onClick={onClose}
             className="flex size-10 items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-[#283039] transition-colors lg:hidden"
@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
         </div>
 
         {/* Menu Links */}
-        <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           {/* Dashboard Link */}
           <Link href="/dashboard" className={getLinkClass('/dashboard')}>
             <span className={`material-symbols-outlined text-[22px] transition-colors ${pathname === '/dashboard' ? 'text-[#137fec]' : 'group-hover:text-white'}`}>

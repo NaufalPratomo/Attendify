@@ -663,7 +663,7 @@ const MonthlyAttendanceReport: React.FC = () => {
       <div className="relative flex min-h-screen flex-col overflow-hidden">
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={user} />
 
-        <div className="flex-1 flex flex-col lg:ml-72 transition-all duration-300">
+        <div className="flex-1 flex flex-col lg:mr-72 transition-all duration-300">
           <Header onMenuClick={() => setIsSidebarOpen(true)} userName={user?.name} />
 
           <main className="flex flex-1 flex-col overflow-y-auto">

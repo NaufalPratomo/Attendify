@@ -170,12 +170,12 @@ export default function Development() {
                     <div className="max-w-xs mx-auto mt-6">
                         <div className="flex justify-between text-xs text-gray-500 mb-1.5">
                             <span>Progress</span>
-                            <span className="text-blue-400">0.01%</span>
+                            <span className="text-blue-400">69%</span>
                         </div>
                         <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full relative"
-                                style={{ width: '0.1%' }}
+                                style={{ width: '69%' }}
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"
                                     style={{ animation: 'shimmer 2s infinite' }}
