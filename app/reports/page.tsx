@@ -28,6 +28,7 @@ interface HolidayEntry {
   dateString: string;
   name: string;
   type: 'GLOBAL' | 'PERSONAL' | 'PIKET';
+  isDeductible?: boolean;
 }
 
 type ApiAttendanceRecord = Omit<AttendanceRecord, '_id'> & { _id?: unknown };
@@ -295,13 +296,27 @@ const MonthlyAttendanceReport: React.FC = () => {
     const toastId = toast.loading("Generating PDF...");
 
     try {
-      // 1. Build lookup maps from pre-fetched holidays
+      // Build holiday lookup maps for keterangan + deductible tracking
       const globalHolidayMap = new Map<string, string>();
       const personalHolidayMap = new Map<string, string>();
+      const holidayDeductibleMap = new Map<string, boolean>();
       holidays.forEach(h => {
-        if (h.type === 'GLOBAL') globalHolidayMap.set(h.dateString, h.name);
-        else if (h.type === 'PERSONAL') personalHolidayMap.set(h.dateString, h.name);
+        if (h.type === 'GLOBAL') {
+          globalHolidayMap.set(h.dateString, h.name);
+        } else if (h.type === 'PERSONAL') {
+          personalHolidayMap.set(h.dateString, h.name);
+        }
+        if (h.type === 'GLOBAL' || h.type === 'PERSONAL') {
+          const existing = holidayDeductibleMap.get(h.dateString);
+          const isDeductible = h.isDeductible !== false;
+          holidayDeductibleMap.set(h.dateString, existing === true || isDeductible);
+        }
       });
+
+      // Fetch adjustments for this month (Ramadhan etc.)
+      const adjRes = await fetch(`/api/adjustments?year=${selectedYear}&month=${selectedMonth + 1}`);
+      const adjData = adjRes.ok ? await adjRes.json() : { adjustments: [] };
+      const adjustments: { startDate: string; endDate: string; reductionMinutes: number }[] = adjData.adjustments || [];
 
       // Build attendance lookup: dateString → record
       const attendanceMap = new Map<string, AttendanceRecord>();
@@ -320,6 +335,13 @@ const MonthlyAttendanceReport: React.FC = () => {
 
       // 3. Iterate every day of the month
       const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const dailyTarget = 480; // 8 hours
+
+      // Target calculation accumulators (synced with dashboard)
+      let totalActualMinutes = 0;
+      let totalDeduction = 0;
+      let totalPiketBonus = 0;
+      let totalAdjDeduction = 0;
 
       // Row shape: [Tanggal, Jam Masuk, Jam Keluar, Durasi, Keterangan]
       // Plus metadata for styling
@@ -337,6 +359,8 @@ const MonthlyAttendanceReport: React.FC = () => {
         const isGlobalHoliday = globalHolidayMap.has(ds);
         const isPersonalHoliday = personalHolidayMap.has(ds);
         const isSunday = dayOfWeek === 0;
+        const holidayDeductible = holidayDeductibleMap.get(ds);
+        const isPiketDay = holidays.some(h => h.type === 'PIKET' && h.dateString === ds);
 
         let checkIn = '-';
         let checkOut = '-';
@@ -381,7 +405,37 @@ const MonthlyAttendanceReport: React.FC = () => {
         }
 
         tableData.push({ row: [dayLabel, checkIn, checkOut, duration, keterangan], style });
+
+        // Accumulate actual minutes from attendance
+        if (att && att.durationMinutes) {
+          totalActualMinutes += att.durationMinutes;
+        }
+
+        // Target calculation (same priority as dashboard stats)
+        if (isPiketDay) {
+          totalPiketBonus += dailyTarget;
+        } else if (isSunday) {
+          // skip
+        } else if (holidayDeductible !== undefined) {
+          if (holidayDeductible === true) {
+            totalDeduction += dailyTarget;
+          }
+        } else {
+          // Normal work day — check adjustments
+          for (const adj of adjustments) {
+            if (ds >= adj.startDate && ds <= adj.endDate) {
+              totalAdjDeduction += (adj.reductionMinutes || 0);
+              break;
+            }
+          }
+        }
       }
+
+      // Calculate dynamic target (synced with dashboard)
+      const dynamicTarget = targetBase - totalDeduction + totalPiketBonus - totalAdjDeduction;
+      const surplusMins = totalActualMinutes - dynamicTarget;
+      const realizationPct = dynamicTarget > 0 ? Math.round((totalActualMinutes / dynamicTarget) * 100) : 0;
+      const targetReached = totalActualMinutes >= dynamicTarget;
 
       // 4. Generate PDF
       const doc = new jsPDF();
@@ -461,22 +515,39 @@ const MonthlyAttendanceReport: React.FC = () => {
 
       doc.setFontSize(9);
       doc.setFont(undefined as unknown as string, 'normal');
-      doc.text(`Total Realisasi: ${formatDuration(totalMinutes)}`, 14, summaryY + 7);
-      doc.text(`Target Bulanan: ${formatDuration(monthlyTargetMinutes)}`, 14, summaryY + 12);
-      doc.text(`${isTargetReached ? 'Bonus' : 'Koreksi'}: ${formatSurplus(surplusMinutes)}`, 14, summaryY + 17);
-      doc.text(`Pencapaian: ${percentComplete}%`, 14, summaryY + 22);
+      doc.text(`Target Bulanan: ${formatDuration(dynamicTarget)}`, 14, summaryY + 7);
+      doc.text(`Total Kerja: ${formatDuration(totalActualMinutes)}`, 14, summaryY + 12);
+      doc.text(`${targetReached ? 'Bonus' : 'Koreksi'}: ${formatSurplus(surplusMins)}`, 14, summaryY + 17);
+
+      // Realisasi with color
+      const pctLabel = `Realisasi: ${realizationPct}%`;
+      if (targetReached) {
+        doc.setTextColor(34, 139, 34); // green
+      } else {
+        doc.setTextColor(220, 50, 50); // red
+      }
+      doc.setFont(undefined as unknown as string, 'bold');
+      doc.text(pctLabel, 14, summaryY + 22);
+      doc.setTextColor(0, 0, 0); // reset
+      doc.setFont(undefined as unknown as string, 'normal');
+
+      // Breakdown detail
+      doc.setFontSize(7.5);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Base: ${formatDuration(targetBase)}  |  Potongan Libur: -${formatDuration(totalDeduction)}  |  Piket Bonus: +${formatDuration(totalPiketBonus)}  |  Adj: -${formatDuration(totalAdjDeduction)}`, 14, summaryY + 28);
+      doc.setTextColor(0, 0, 0);
 
       // Legend
-      const legendY = summaryY + 30;
+      const legendY = summaryY + 36;
       doc.setFontSize(8);
       doc.setFont(undefined as unknown as string, 'bold');
       doc.text("Keterangan Warna:", 14, legendY);
       doc.setFont(undefined as unknown as string, 'normal');
 
       const legends = [
-        { label: 'Piket (biru muda)', color: [220, 240, 255] as [number, number, number] },
-        { label: 'Cuti/Sakit (kuning)', color: [255, 249, 220] as [number, number, number] },
-        { label: 'Libur (abu-abu)', color: [240, 240, 240] as [number, number, number] },
+        { label: 'Piket (hijau)', color: [220, 252, 231] as [number, number, number] },
+        { label: 'Cuti/Sakit (kuning)', color: [254, 249, 195] as [number, number, number] },
+        { label: 'Libur (abu-abu)', color: [243, 244, 246] as [number, number, number] },
         { label: 'Tanpa Keterangan (teks merah)', color: null },
       ];
       legends.forEach((l, i) => {
