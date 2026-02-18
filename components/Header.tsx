@@ -23,7 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, userName }) => {
       {/* Tombol Burger (kanan, mobile only) */}
       <button
         onClick={onMenuClick}
-        className="flex size-12 items-center justify-center rounded-lg text-gray-400 hover:bg-[#1c2632] hover:text-white transition-colors lg:hidden"
+        className="flex size-12 items-center justify-center rounded-lg text-gray-400 hover:bg-[#1c2632] hover:text-white transition-colors"
       >
         <span className="material-symbols-outlined text-3xl">menu</span>
       </button>

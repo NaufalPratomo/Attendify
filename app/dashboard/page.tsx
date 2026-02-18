@@ -135,20 +135,12 @@ const AttendifyDashboard: React.FC = () => {
     return (
       <div className="bg-[#101922] font-sans text-white antialiased min-h-screen">
         <div className="relative flex min-h-screen flex-col overflow-hidden">
-          {/* Sidebar Skeleton (Mobile hidden, Desktop visible) */}
-          <div className="hidden lg:block fixed right-0 top-0 z-30 h-full w-72 border-l border-[#283039] bg-[#1c2632]">
-            <div className="flex h-16 items-center border-b border-[#283039] px-6">
-              <Skeleton className="h-8 w-32 bg-[#283039]" />
-            </div>
-            <div className="p-4 space-y-4">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full bg-[#283039]" />)}
-            </div>
-          </div>
 
-          <div className="flex-1 flex flex-col lg:mr-72 transition-all duration-300">
+
+          <div className="flex-1 flex flex-col transition-all duration-300">
             {/* Header Skeleton */}
             <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#283039] bg-[#101922]/80 px-6 backdrop-blur-xl">
-              <Skeleton className="h-8 w-8 lg:hidden bg-[#283039]" />
+              <Skeleton className="h-8 w-8 bg-[#283039]" />
               <div className="flex items-center gap-4 ml-auto">
                 <Skeleton className="h-10 w-32 bg-[#283039] rounded-full" />
               </div>
@@ -211,7 +203,7 @@ const AttendifyDashboard: React.FC = () => {
           }}
         />
 
-        <div className="flex-1 flex flex-col lg:mr-72 transition-all duration-300">
+        <div className="flex-1 flex flex-col transition-all duration-300">
           <Header
             onMenuClick={() => setIsSidebarOpen(true)}
             userName={stats.userName}

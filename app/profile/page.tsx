@@ -203,7 +203,7 @@ const ProfilePage = () => {
       />
 
       {/* Main Layout Column */}
-      <div className="relative flex flex-1 flex-col h-full overflow-hidden transition-all duration-300 lg:mr-72">
+      <div className="relative flex flex-1 flex-col h-full overflow-hidden transition-all duration-300">
 
         {/* Header Component */}
         <Header onMenuClick={() => setIsSidebarOpen(true)} userName={profile.name} />

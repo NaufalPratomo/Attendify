@@ -69,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
     <>
       {/* 1. Overlay Gelap (Backdrop) */}
       <div
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
           }`}
         onClick={onClose}
         aria-hidden="true"
@@ -77,14 +77,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, user }) => {
 
       {/* 2. Sidebar Panel */}
       <aside
-        className={`fixed top-0 right-0 z-50 h-full w-72 bg-[#101922] border-l border-[#283039] transform transition-transform duration-300 ease-in-out flex flex-col lg:translate-x-0 ${isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-0 right-0 z-50 h-full w-72 bg-[#101922] border-l border-[#283039] transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
       >
         {/* Header & Close Button */}
         <div className="flex items-start justify-between p-5 shrink-0">
           <button
             onClick={onClose}
-            className="flex size-10 items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-[#283039] transition-colors lg:hidden"
+            className="flex size-10 items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-[#283039] transition-colors"
             aria-label="Close sidebar"
           >
             <span className="material-symbols-outlined text-3xl">close</span>
