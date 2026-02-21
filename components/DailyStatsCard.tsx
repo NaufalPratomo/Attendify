@@ -3,11 +3,12 @@ import React from 'react';
 interface DailyStatsCardProps {
     todayMinutes: number;
     dailyTargetMinutes: number;
+    dailyProgress?: number;
 }
 
-const DailyStatsCard: React.FC<DailyStatsCardProps> = ({ todayMinutes, dailyTargetMinutes }) => {
+const DailyStatsCard: React.FC<DailyStatsCardProps> = ({ todayMinutes, dailyTargetMinutes, dailyProgress }) => {
     const now = new Date();
-    const percentComplete = Math.min(100, (todayMinutes / (dailyTargetMinutes || 1)) * 100);
+    const percentComplete = dailyProgress ?? Math.min(100, (todayMinutes / (dailyTargetMinutes || 1)) * 100);
     const remaining = Math.max(0, dailyTargetMinutes - todayMinutes);
 
     return (

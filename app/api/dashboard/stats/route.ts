@@ -7,15 +7,66 @@ import Adjustment from '@/models/Adjustment';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
-export async function GET(req: Request) {
+type AdjustmentWindow = {
+    start: Date;
+    end: Date;
+    reductionMinutes: number;
+};
+
+type AdjustmentInput = {
+    startDate: string;
+    endDate: string;
+    reductionMinutes?: number;
+};
+
+type ScheduleEntry = {
+    type: 'GLOBAL' | 'PERSONAL' | 'PIKET';
+    dateString: string;
+    isDeductible?: boolean;
+};
+
+const getStartOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+const getEndOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+const toLocalDateString = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const normalizeAdjustments = (adjustments: AdjustmentInput[]): AdjustmentWindow[] => {
+    return adjustments
+        .map((adj) => {
+            const start = new Date(`${adj.startDate}T00:00:00.000`);
+            const end = new Date(`${adj.endDate}T23:59:59.999`);
+            return {
+                start,
+                end,
+                reductionMinutes: Number(adj.reductionMinutes || 0)
+            };
+        })
+        .filter((adj) => !Number.isNaN(adj.start.getTime()) && !Number.isNaN(adj.end.getTime()));
+};
+
+const getAdjustmentReductionForDay = (date: Date, adjustmentWindows: AdjustmentWindow[]) => {
+    const dayStart = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
+    return adjustmentWindows.reduce((total, adj) => {
+        if (adj.start <= dayEnd && adj.end >= dayStart) {
+            return total + adj.reductionMinutes;
+        }
+        return total;
+    }, 0);
+};
+
+export async function GET() {
     try {
         try {
             await connectToDatabase();
-        } catch (dbError: any) {
+        } catch (dbError: unknown) {
+            const details = dbError instanceof Error ? dbError.message : String(dbError);
             console.error("[Stats API] Database Connection Failed:", dbError);
             return NextResponse.json({
                 message: 'Database connection failed',
-                details: dbError.message || String(dbError)
+                details
             }, { status: 500 });
         }
 
@@ -54,14 +105,16 @@ export async function GET(req: Request) {
         let yearlyMinutes = 0;
         let todayMinutes = 0; // Fix: Initialize variable
         let workingDaysCount = 0;
-        let recentActivity: any[] = [];
+        let recentActivity: unknown[] = [];
         let dynamicMonthlyTarget = 11240; // Fallback
+        let dynamicDailyTarget = user.dailyTarget || 480;
+        let dailyProgress = 0;
 
         try {
             // Calculate Dates
             const now = new Date();
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-            const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+            const startOfDay = getStartOfDay(now);
+            const endOfDay = getEndOfDay(now);
 
             const startOfYear = new Date(now.getFullYear(), 0, 1);
             const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
@@ -132,7 +185,7 @@ export async function GET(req: Request) {
             const monthStr = String(now.getMonth() + 1).padStart(2, '0');
             const yearStr = String(now.getFullYear());
             const startDateStr = `${yearStr}-${monthStr}-01`;
-            const endDateStr = `${yearStr}-${monthStr}-31`;
+            const endDateStr = `${yearStr}-${monthStr}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
 
             const scheduleEntries = await Holiday.find({
                 dateString: { $gte: startDateStr, $lte: endDateStr },
@@ -147,7 +200,7 @@ export async function GET(req: Request) {
             const holidayDateMap = new Map<string, boolean>(); // dateString -> isDeductible
             const piketDateSet = new Set<string>();
 
-            scheduleEntries.forEach((entry: any) => {
+            scheduleEntries.forEach((entry: ScheduleEntry) => {
                 if (entry.type === 'PIKET') {
                     piketDateSet.add(entry.dateString);
                 } else {
@@ -162,7 +215,14 @@ export async function GET(req: Request) {
             const adjustments = await Adjustment.find({
                 startDate: { $lte: endDateStr },
                 endDate: { $gte: startDateStr },
-            });
+            }) as AdjustmentInput[];
+            const adjustmentWindows = normalizeAdjustments(adjustments);
+
+            const todayReduction = getAdjustmentReductionForDay(now, adjustmentWindows);
+            dynamicDailyTarget = Math.max(0, dailyTarget - todayReduction);
+            dailyProgress = dynamicDailyTarget > 0
+                ? Math.min(100, Math.round((todayMinutes / dynamicDailyTarget) * 100))
+                : (todayMinutes > 0 ? 100 : 0);
 
             // Calculate target adjustments with priority-based logic:
             // 1. PIKET → adds dailyTarget to monthly target (extra work day)
@@ -179,7 +239,7 @@ export async function GET(req: Request) {
             const tempDate = new Date(startOfMonth);
             while (tempDate <= endOfMonth) {
                 const dayOfWeek = tempDate.getDay();
-                const ds = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, '0')}-${String(tempDate.getDate()).padStart(2, '0')}`;
+                const ds = toLocalDateString(tempDate);
 
                 const isPiket = piketDateSet.has(ds);
                 const isSunday = dayOfWeek === 0;
@@ -202,13 +262,7 @@ export async function GET(req: Request) {
                     // Normal work day
                     workingDaysCount++;
 
-                    // Check if this date falls within any adjustment period
-                    for (const adj of adjustments) {
-                        if (ds >= adj.startDate && ds <= adj.endDate) {
-                            adjustmentDeductionTotal += (adj.reductionMinutes || 0);
-                            break;
-                        }
-                    }
+                    adjustmentDeductionTotal += getAdjustmentReductionForDay(tempDate, adjustmentWindows);
                 }
 
                 tempDate.setDate(tempDate.getDate() + 1);
@@ -233,13 +287,15 @@ export async function GET(req: Request) {
             currentMinutes,
             yearlyMinutes,
             recentActivity,
-            dailyTargetMinutes: user.dailyTarget || 480,
+            dailyTargetMinutes: dynamicDailyTarget,
+            dynamicDailyTargetMinutes: dynamicDailyTarget,
+            dailyProgress,
             monthlyTargetMinutes: dynamicMonthlyTarget,
             yearlyTargetMinutes: user.yearlyTarget || 134880,
             workingDaysCount
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("[Stats API] Critical Error:", error);
         return NextResponse.json({
             message: 'Internal server error',

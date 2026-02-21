@@ -31,6 +31,12 @@ interface HolidayEntry {
   isDeductible?: boolean;
 }
 
+interface AdjustmentEntry {
+  startDate: string;
+  endDate: string;
+  reductionMinutes: number;
+}
+
 type ApiAttendanceRecord = Omit<AttendanceRecord, '_id'> & { _id?: unknown };
 
 const MonthlyAttendanceReport: React.FC = () => {
@@ -102,6 +108,33 @@ const MonthlyAttendanceReport: React.FC = () => {
       if (typeof maybeToString === 'function') return String(maybeToString.call(value));
     }
     return '';
+  };
+
+  const getStartOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+  const getEndOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+  const normalizeAdjustmentWindows = (items: AdjustmentEntry[]) => {
+    return items
+      .map((adj) => ({
+        start: new Date(`${adj.startDate}T00:00:00.000`),
+        end: new Date(`${adj.endDate}T23:59:59.999`),
+        reductionMinutes: Number(adj.reductionMinutes || 0),
+      }))
+      .filter((adj) => !Number.isNaN(adj.start.getTime()) && !Number.isNaN(adj.end.getTime()));
+  };
+
+  const getAdjustmentReductionForDay = (
+    date: Date,
+    windows: { start: Date; end: Date; reductionMinutes: number }[]
+  ) => {
+    const dayStart = getStartOfDay(date);
+    const dayEnd = getEndOfDay(date);
+    return windows.reduce((sum, adj) => {
+      if (adj.start <= dayEnd && adj.end >= dayStart) {
+        return sum + adj.reductionMinutes;
+      }
+      return sum;
+    }, 0);
   };
 
   const fetchData = useCallback(async () => {
@@ -316,7 +349,8 @@ const MonthlyAttendanceReport: React.FC = () => {
       // Fetch adjustments for this month (Ramadhan etc.)
       const adjRes = await fetch(`/api/adjustments?year=${selectedYear}&month=${selectedMonth + 1}`);
       const adjData = adjRes.ok ? await adjRes.json() : { adjustments: [] };
-      const adjustments: { startDate: string; endDate: string; reductionMinutes: number }[] = adjData.adjustments || [];
+      const adjustments: AdjustmentEntry[] = adjData.adjustments || [];
+      const adjustmentWindows = normalizeAdjustmentWindows(adjustments);
 
       // Build attendance lookup: dateString → record
       const attendanceMap = new Map<string, AttendanceRecord>();
@@ -335,7 +369,12 @@ const MonthlyAttendanceReport: React.FC = () => {
 
       // 3. Iterate every day of the month
       const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-      const dailyTarget = 480; // 8 hours
+      const baseDailyTarget = 480; // 8 hours
+      const piketDateSet = new Set(
+        holidays
+          .filter((h) => h.type === 'PIKET')
+          .map((h) => h.dateString)
+      );
 
       // Target calculation accumulators (synced with dashboard)
       let totalActualMinutes = 0;
@@ -360,7 +399,11 @@ const MonthlyAttendanceReport: React.FC = () => {
         const isPersonalHoliday = personalHolidayMap.has(ds);
         const isSunday = dayOfWeek === 0;
         const holidayDeductible = holidayDeductibleMap.get(ds);
-        const isPiketDay = holidays.some(h => h.type === 'PIKET' && h.dateString === ds);
+        const isPiketDay = piketDateSet.has(ds);
+        const reductionForDay = getAdjustmentReductionForDay(date, adjustmentWindows);
+        const dynamicDailyTarget = Math.max(0, baseDailyTarget - reductionForDay);
+        const showDynamicTargetNote = !isPiketDay && !isSunday && !isGlobalHoliday && !isPersonalHoliday && reductionForDay > 0;
+        const targetNote = showDynamicTargetNote ? ` (Target ${dynamicDailyTarget}m)` : '';
 
         let checkIn = '-';
         let checkOut = '-';
@@ -378,7 +421,7 @@ const MonthlyAttendanceReport: React.FC = () => {
             keterangan = 'Piket';
             style = 'piket';
           } else {
-            keterangan = 'Hadir';
+            keterangan = `Hadir${targetNote}`;
             style = 'hadir';
           }
         } else {
@@ -399,7 +442,7 @@ const MonthlyAttendanceReport: React.FC = () => {
             keterangan = 'Libur Mingguan';
             style = 'libur';
           } else {
-            keterangan = 'Tanpa Keterangan';
+            keterangan = `Tanpa Keterangan${targetNote}`;
             style = 'alpha';
           }
         }
@@ -413,21 +456,16 @@ const MonthlyAttendanceReport: React.FC = () => {
 
         // Target calculation (same priority as dashboard stats)
         if (isPiketDay) {
-          totalPiketBonus += dailyTarget;
+          totalPiketBonus += baseDailyTarget;
         } else if (isSunday) {
           // skip
         } else if (holidayDeductible !== undefined) {
           if (holidayDeductible === true) {
-            totalDeduction += dailyTarget;
+            totalDeduction += baseDailyTarget;
           }
         } else {
           // Normal work day — check adjustments
-          for (const adj of adjustments) {
-            if (ds >= adj.startDate && ds <= adj.endDate) {
-              totalAdjDeduction += (adj.reductionMinutes || 0);
-              break;
-            }
-          }
+          totalAdjDeduction += reductionForDay;
         }
       }
 
@@ -516,8 +554,8 @@ const MonthlyAttendanceReport: React.FC = () => {
 
       doc.setFontSize(9);
       doc.setFont(undefined as unknown as string, 'normal');
-      doc.text(`Target Bulanan: ${formatDuration(dynamicTarget)}`, 14, summaryY + 7);
-      doc.text(`Total Kerja: ${formatDuration(totalActualMinutes)}`, 14, summaryY + 12);
+      doc.text(`Target Dinamis Bulan Ini: ${dynamicTarget.toLocaleString()} Menit`, 14, summaryY + 7);
+      doc.text(`Total Aktual: ${totalActualMinutes.toLocaleString()} Menit`, 14, summaryY + 12);
       doc.text(`${targetReached ? 'Bonus' : 'Koreksi'}: ${formatSurplus(surplusMins)}`, 14, summaryY + 17);
 
       // Realisasi with color
@@ -535,7 +573,7 @@ const MonthlyAttendanceReport: React.FC = () => {
       // Breakdown detail
       doc.setFontSize(7.5);
       doc.setTextColor(120, 120, 120);
-      doc.text(`Base: ${formatDuration(targetBase)}  |  Potongan Libur: -${formatDuration(totalDeduction)}  |  Piket Bonus: +${formatDuration(totalPiketBonus)}  |  Adj: -${formatDuration(totalAdjDeduction)}`, 14, summaryY + 28);
+      doc.text(`Base: ${targetBase}m  |  Potongan Libur: -${totalDeduction}m  |  Potongan Adjustment: -${totalAdjDeduction}m  |  Bonus Piket: +${totalPiketBonus}m`, 14, summaryY + 28);
       doc.setTextColor(0, 0, 0);
 
       // Legend

@@ -29,6 +29,7 @@ interface DashboardStats {
   yearlyTargetMinutes: number;
   todayMinutes: number;
   dailyTargetMinutes: number;
+  dailyProgress?: number;
 }
 
 const AttendifyDashboard: React.FC = () => {
@@ -293,6 +294,7 @@ const AttendifyDashboard: React.FC = () => {
                 <DailyStatsCard
                   todayMinutes={stats.todayMinutes || 0}
                   dailyTargetMinutes={stats.dailyTargetMinutes || 0}
+                  dailyProgress={stats.dailyProgress}
                 />
 
                 {/* Monthly Summary Card (Formerly Yearly) */}
