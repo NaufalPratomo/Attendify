@@ -39,6 +39,13 @@ interface AdjustmentEntry {
 
 type ApiAttendanceRecord = Omit<AttendanceRecord, '_id'> & { _id?: unknown };
 
+interface ReportStatsSummary {
+  actualMinutesWorked: number;
+  dynamicMonthlyTarget: number;
+  elapsedTarget: number;
+  differenceMinutes: number;
+}
+
 const MonthlyAttendanceReport: React.FC = () => {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -58,6 +65,12 @@ const MonthlyAttendanceReport: React.FC = () => {
   const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<HolidayEntry[]>([]);
+  const [reportSummary, setReportSummary] = useState<ReportStatsSummary>({
+    actualMinutesWorked: 0,
+    dynamicMonthlyTarget: 0,
+    elapsedTarget: 0,
+    differenceMinutes: 0,
+  });
 
   // Manual Entry State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -140,7 +153,7 @@ const MonthlyAttendanceReport: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const statsRes = await fetch('/api/dashboard/stats');
+      const statsRes = await fetch(`/api/dashboard/stats?month=${selectedMonth + 1}&year=${selectedYear}`);
       if (statsRes.status === 401) {
         router.push('/auth/login');
         return;
@@ -150,6 +163,12 @@ const MonthlyAttendanceReport: React.FC = () => {
         name: statsData.userName,
         email: statsData.userEmail,
         avatar: statsData.userAvatar
+      });
+      setReportSummary({
+        actualMinutesWorked: Number(statsData.actualMinutesWorked || 0),
+        dynamicMonthlyTarget: Number(statsData.dynamicMonthlyTarget || statsData.monthlyTargetMinutes || 0),
+        elapsedTarget: Number(statsData.elapsedTarget || 0),
+        differenceMinutes: Number(statsData.differenceMinutes || 0),
       });
 
       const settingsRes = await fetch('/api/settings/target');
@@ -254,25 +273,11 @@ const MonthlyAttendanceReport: React.FC = () => {
     }
   };
 
-  // Calculate Stats
-  const totalMinutes = allRecords.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
-  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-  const dailyTarget = targetBase / 31;
-
-  // Dynamic Target Logic
-  let targetDays = daysInMonth;
   const today = new Date();
   const isCurrentMonth = selectedYear === today.getFullYear() && selectedMonth === today.getMonth();
-  const isFutureMonth = new Date(selectedYear, selectedMonth, 1) > today;
-
-  if (isCurrentMonth) {
-    targetDays = today.getDate();
-  } else if (isFutureMonth) {
-    targetDays = 0;
-  }
-
-  const monthlyTargetMinutes = Math.round(dailyTarget * targetDays);
-  const surplusMinutes = totalMinutes - monthlyTargetMinutes;
+  const totalMinutes = reportSummary.actualMinutesWorked;
+  const monthlyTargetMinutes = reportSummary.elapsedTarget;
+  const surplusMinutes = reportSummary.differenceMinutes;
   const isTargetReached = surplusMinutes >= 0;
   // Prevent division by zero
   const percentComplete = monthlyTargetMinutes > 0
@@ -329,6 +334,15 @@ const MonthlyAttendanceReport: React.FC = () => {
     const toastId = toast.loading("Generating PDF...");
 
     try {
+      const statsRes = await fetch(`/api/dashboard/stats?month=${selectedMonth + 1}&year=${selectedYear}`);
+      const statsJson = statsRes.ok ? await statsRes.json() : null;
+      const statsSummary: ReportStatsSummary = {
+        actualMinutesWorked: Number(statsJson?.actualMinutesWorked ?? reportSummary.actualMinutesWorked),
+        dynamicMonthlyTarget: Number(statsJson?.dynamicMonthlyTarget ?? reportSummary.dynamicMonthlyTarget),
+        elapsedTarget: Number(statsJson?.elapsedTarget ?? reportSummary.elapsedTarget),
+        differenceMinutes: Number(statsJson?.differenceMinutes ?? reportSummary.differenceMinutes),
+      };
+
       // Build holiday lookup maps for keterangan + deductible tracking
       const globalHolidayMap = new Map<string, string>();
       const personalHolidayMap = new Map<string, string>();
@@ -353,14 +367,13 @@ const MonthlyAttendanceReport: React.FC = () => {
       const adjustmentWindows = normalizeAdjustmentWindows(adjustments);
 
       // Build attendance lookup: dateString → record
-      const attendanceMap = new Map<string, AttendanceRecord>();
+      const attendanceMap = new Map<string, AttendanceRecord[]>();
       allRecords.forEach(r => {
         const d = new Date(r.checkIn);
         const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        // Keep the latest record if multiple per day
-        if (!attendanceMap.has(ds) || (r.durationMinutes || 0) > (attendanceMap.get(ds)!.durationMinutes || 0)) {
-          attendanceMap.set(ds, r);
-        }
+        const current = attendanceMap.get(ds) || [];
+        current.push(r);
+        attendanceMap.set(ds, current);
       });
 
       // 2. Indonesian day names
@@ -370,6 +383,9 @@ const MonthlyAttendanceReport: React.FC = () => {
       // 3. Iterate every day of the month
       const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       const baseDailyTarget = 480; // 8 hours
+      const nowForLive = new Date();
+      const todayStart = getStartOfDay(nowForLive);
+      const todayEnd = getEndOfDay(nowForLive);
       const piketDateSet = new Set(
         holidays
           .filter((h) => h.type === 'PIKET')
@@ -377,7 +393,6 @@ const MonthlyAttendanceReport: React.FC = () => {
       );
 
       // Target calculation accumulators (synced with dashboard)
-      let totalActualMinutes = 0;
       let totalDeduction = 0;
       let totalPiketBonus = 0;
       let totalAdjDeduction = 0;
@@ -394,16 +409,30 @@ const MonthlyAttendanceReport: React.FC = () => {
 
         const dayLabel = `${hariIndo[dayOfWeek]}, ${String(day).padStart(2, '0')} ${bulanIndo[selectedMonth].substring(0, 3)} ${selectedYear}`;
 
-        const att = attendanceMap.get(ds);
+        const dayRecords = [...(attendanceMap.get(ds) || [])].sort(
+          (a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime()
+        );
+        const hasAttendance = dayRecords.length > 0;
         const isGlobalHoliday = globalHolidayMap.has(ds);
         const isPersonalHoliday = personalHolidayMap.has(ds);
         const isSunday = dayOfWeek === 0;
         const holidayDeductible = holidayDeductibleMap.get(ds);
         const isPiketDay = piketDateSet.has(ds);
+        const isToday = date >= todayStart && date <= todayEnd;
         const reductionForDay = getAdjustmentReductionForDay(date, adjustmentWindows);
         const dynamicDailyTarget = Math.max(0, baseDailyTarget - reductionForDay);
         const showDynamicTargetNote = !isPiketDay && !isSunday && !isGlobalHoliday && !isPersonalHoliday && reductionForDay > 0;
         const targetNote = showDynamicTargetNote ? ` (Target ${dynamicDailyTarget}m)` : '';
+
+        const completedMinutes = dayRecords.reduce((sum, record) => sum + (record.durationMinutes || 0), 0);
+        const liveMinutes = isToday
+          ? dayRecords.reduce((sum, record) => {
+            if (record.checkOut) return sum;
+            const diff = Math.floor((Date.now() - new Date(record.checkIn).getTime()) / 60000);
+            return sum + Math.max(0, diff);
+          }, 0)
+          : 0;
+        const dayTotalMinutes = completedMinutes + liveMinutes;
 
         let checkIn = '-';
         let checkOut = '-';
@@ -411,11 +440,14 @@ const MonthlyAttendanceReport: React.FC = () => {
         let keterangan = '';
         let style: RowMeta['style'] = 'hadir';
 
-        if (att) {
+        if (hasAttendance) {
+          const firstRecord = dayRecords[0];
+          const lastRecord = dayRecords[dayRecords.length - 1];
+
           // Case A: Ada data absensi
-          checkIn = formatTime(att.checkIn);
-          checkOut = formatTime(att.checkOut);
-          duration = formatDuration(att.durationMinutes);
+          checkIn = formatTime(firstRecord.checkIn);
+          checkOut = lastRecord.checkOut ? formatTime(lastRecord.checkOut) : (isToday ? 'Belum' : '-');
+          duration = formatDuration(dayTotalMinutes);
 
           if (isSunday || isGlobalHoliday) {
             keterangan = 'Piket';
@@ -449,11 +481,6 @@ const MonthlyAttendanceReport: React.FC = () => {
 
         tableData.push({ row: [dayLabel, checkIn, checkOut, duration, keterangan], style });
 
-        // Accumulate actual minutes from attendance
-        if (att && att.durationMinutes) {
-          totalActualMinutes += att.durationMinutes;
-        }
-
         // Target calculation (same priority as dashboard stats)
         if (isPiketDay) {
           totalPiketBonus += baseDailyTarget;
@@ -469,11 +496,12 @@ const MonthlyAttendanceReport: React.FC = () => {
         }
       }
 
-      // Calculate dynamic target (synced with dashboard)
-      const dynamicTarget = targetBase - totalDeduction + totalPiketBonus - totalAdjDeduction;
-      const surplusMins = totalActualMinutes - dynamicTarget;
-      const realizationPct = dynamicTarget > 0 ? Math.round((totalActualMinutes / dynamicTarget) * 100) : 0;
-      const targetReached = totalActualMinutes >= dynamicTarget;
+      // Use dashboard stats as single source of truth for summary values.
+      const dynamicTarget = statsSummary.dynamicMonthlyTarget;
+      const totalActualFromStats = statsSummary.actualMinutesWorked;
+      const surplusMins = statsSummary.differenceMinutes;
+      const realizationPct = dynamicTarget > 0 ? Math.round((totalActualFromStats / dynamicTarget) * 100) : 0;
+      const targetReached = surplusMins >= 0;
 
       // 4. Generate PDF
       const doc = new jsPDF();
@@ -555,7 +583,7 @@ const MonthlyAttendanceReport: React.FC = () => {
       doc.setFontSize(9);
       doc.setFont(undefined as unknown as string, 'normal');
       doc.text(`Target Dinamis Bulan Ini: ${dynamicTarget.toLocaleString()} Menit`, 14, summaryY + 7);
-      doc.text(`Total Aktual: ${totalActualMinutes.toLocaleString()} Menit`, 14, summaryY + 12);
+      doc.text(`Total Aktual: ${totalActualFromStats.toLocaleString()} Menit`, 14, summaryY + 12);
       doc.text(`${targetReached ? 'Bonus' : 'Koreksi'}: ${formatSurplus(surplusMins)}`, 14, summaryY + 17);
 
       // Realisasi with color

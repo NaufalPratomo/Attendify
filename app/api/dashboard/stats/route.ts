@@ -57,7 +57,7 @@ const getAdjustmentReductionForDay = (date: Date, adjustmentWindows: AdjustmentW
     }, 0);
 };
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         try {
             await connectToDatabase();
@@ -113,14 +113,22 @@ export async function GET() {
         try {
             // Calculate Dates
             const now = new Date();
+            const url = new URL(req.url);
+            const yearParam = parseInt(url.searchParams.get('year') || '', 10);
+            const monthParam = parseInt(url.searchParams.get('month') || '', 10); // 1-12
+
+            const selectedYear = Number.isNaN(yearParam) ? now.getFullYear() : yearParam;
+            const selectedMonthIndex = Number.isNaN(monthParam) ? now.getMonth() : Math.min(11, Math.max(0, monthParam - 1));
+            const isCurrentSelectedMonth = selectedYear === now.getFullYear() && selectedMonthIndex === now.getMonth();
+
             const startOfDay = getStartOfDay(now);
             const endOfDay = getEndOfDay(now);
 
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+            const startOfYear = new Date(selectedYear, 0, 1);
+            const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
 
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            const startOfMonth = new Date(selectedYear, selectedMonthIndex, 1);
+            const endOfMonth = new Date(selectedYear, selectedMonthIndex + 1, 0, 23, 59, 59, 999);
 
             // Today's Attendance
             const todayAttendance = await Attendance.findOne({
@@ -163,7 +171,7 @@ export async function GET() {
             // We should add the live minutes to 'currentMinutes' (Monthly) and 'yearlyMinutes' as well for consistency?
             // "Active" minutes aren't usually counted until finished, but for a progress bar it's nice.
             // Let's add it if we want "Live" stats.
-            if (todayStatus === 'checked-in' && todayAttendance) {
+            if (isCurrentSelectedMonth && todayStatus === 'checked-in' && todayAttendance) {
                 const diffMs = new Date().getTime() - new Date(todayAttendance.checkIn).getTime();
                 const liveMinutes = Math.floor(diffMs / 60000);
                 // Only add if this record was included in the fetch? 
@@ -182,8 +190,8 @@ export async function GET() {
             const dailyTarget = user.dailyTarget || 480;
 
             // Fetch schedule entries for this month (GLOBAL + PERSONAL + PIKET for this user)
-            const monthStr = String(now.getMonth() + 1).padStart(2, '0');
-            const yearStr = String(now.getFullYear());
+            const monthStr = String(selectedMonthIndex + 1).padStart(2, '0');
+            const yearStr = String(selectedYear);
             const startDateStr = `${yearStr}-${monthStr}-01`;
             const endDateStr = `${yearStr}-${monthStr}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
 
@@ -218,11 +226,16 @@ export async function GET() {
             }) as AdjustmentInput[];
             const adjustmentWindows = normalizeAdjustments(adjustments);
 
-            const todayReduction = getAdjustmentReductionForDay(now, adjustmentWindows);
-            dynamicDailyTarget = Math.max(0, dailyTarget - todayReduction);
-            dailyProgress = dynamicDailyTarget > 0
-                ? Math.min(100, Math.round((todayMinutes / dynamicDailyTarget) * 100))
-                : (todayMinutes > 0 ? 100 : 0);
+            if (isCurrentSelectedMonth) {
+                const todayReduction = getAdjustmentReductionForDay(now, adjustmentWindows);
+                dynamicDailyTarget = Math.max(0, dailyTarget - todayReduction);
+                dailyProgress = dynamicDailyTarget > 0
+                    ? Math.min(100, Math.round((todayMinutes / dynamicDailyTarget) * 100))
+                    : (todayMinutes > 0 ? 100 : 0);
+            } else {
+                dynamicDailyTarget = dailyTarget;
+                dailyProgress = 0;
+            }
 
             // Calculate target adjustments with priority-based logic:
             // 1. PIKET → adds dailyTarget to monthly target (extra work day)
@@ -271,7 +284,37 @@ export async function GET() {
             // Final Formula: base - deductions + piket bonus - adjustment reductions
             dynamicMonthlyTarget = monthlyTargetBase - deductionMinutes + addedPiketMinutes - adjustmentDeductionTotal;
 
+            const daysInSelectedMonth = endOfMonth.getDate();
+            const elapsedDays = isCurrentSelectedMonth
+                ? now.getDate()
+                : (startOfMonth > now ? 0 : daysInSelectedMonth);
+            const elapsedTarget = dynamicMonthlyTarget > 0
+                ? Math.round((dynamicMonthlyTarget / daysInSelectedMonth) * elapsedDays)
+                : 0;
+            const actualMinutesWorked = currentMinutes;
+            const differenceMinutes = actualMinutesWorked - elapsedTarget;
+
             console.log("[Stats API] Working days:", workingDaysCount, "Deduction:", deductionMinutes, "Piket+:", addedPiketMinutes, "Adj-:", adjustmentDeductionTotal, "Base:", monthlyTargetBase, "Target:", dynamicMonthlyTarget);
+            return NextResponse.json({
+                userName: user.name,
+                userEmail: user.email,
+                userAvatar: user.avatar,
+                todayStatus,
+                todayMinutes: todayMinutes || 0,
+                currentMinutes,
+                yearlyMinutes,
+                recentActivity,
+                dailyTargetMinutes: dynamicDailyTarget,
+                dynamicDailyTargetMinutes: dynamicDailyTarget,
+                dailyProgress,
+                monthlyTargetMinutes: dynamicMonthlyTarget,
+                dynamicMonthlyTarget,
+                actualMinutesWorked,
+                elapsedTarget,
+                differenceMinutes,
+                yearlyTargetMinutes: user.yearlyTarget || 134880,
+                workingDaysCount
+            });
 
         } catch (statsError) {
             console.error("[Stats API] Error calculating stats (continuing with defaults):", statsError);
@@ -291,6 +334,10 @@ export async function GET() {
             dynamicDailyTargetMinutes: dynamicDailyTarget,
             dailyProgress,
             monthlyTargetMinutes: dynamicMonthlyTarget,
+            dynamicMonthlyTarget,
+            actualMinutesWorked: currentMinutes,
+            elapsedTarget: 0,
+            differenceMinutes: currentMinutes,
             yearlyTargetMinutes: user.yearlyTarget || 134880,
             workingDaysCount
         });
