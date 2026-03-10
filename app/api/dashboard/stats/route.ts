@@ -84,12 +84,16 @@ export async function GET(req: Request) {
             payload = await verifyToken(token);
         } catch (e) {
             console.error("[Stats API] Token verification threw error:", e);
-            return NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 });
+            const response = NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 });
+            response.cookies.delete('attendify_token');
+            return response;
         }
 
         if (!payload || !payload.userId) {
             console.warn("[Stats API] Check failed: Invalid payload", payload);
-            return NextResponse.json({ message: 'Unauthorized: Invalid payload' }, { status: 401 });
+            const response = NextResponse.json({ message: 'Unauthorized: Invalid payload' }, { status: 401 });
+            response.cookies.delete('attendify_token');
+            return response;
         }
 
         const user = await User.findById(payload.userId);
