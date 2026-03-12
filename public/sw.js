@@ -44,6 +44,23 @@ self.addEventListener('fetch', (event) => {
     // Skip cross-origin requests
     if (url.origin !== self.location.origin) return;
 
+    // Handle navigation requests (e.g., HTML pages) - Network First to respect Next.js middleware redirects
+    if (request.mode === 'navigate') {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    // Update cache for offline use if it's a successful 200 response
+                    if (response.ok) {
+                        const clonedResponse = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(request, clonedResponse));
+                    }
+                    return response;
+                })
+                .catch(() => caches.match(request)) // Fallback to cache if offline
+        );
+        return;
+    }
+
     // API routes - Network First
     if (url.pathname.startsWith('/api/')) {
         event.respondWith(
