@@ -252,42 +252,52 @@ export async function GET(req: Request) {
             let deductionMinutes = 0;
             let addedPiketMinutes = 0;
             let adjustmentDeductionTotal = 0;
-            const monthlyTargetBase = user.monthlyTargetBase || 11240;
+            let calendarMonthlyBase = 0;
 
             const tempDate = new Date(startOfMonth);
             while (tempDate <= endOfMonth) {
                 const dayOfWeek = tempDate.getDay();
                 const ds = toLocalDateString(tempDate);
+                const reductionForDay = getAdjustmentReductionForDay(tempDate, adjustmentWindows);
+                const effectiveDailyTarget = Math.max(0, dailyTarget - reductionForDay);
 
                 const isPiket = piketDateSet.has(ds);
                 const isSunday = dayOfWeek === 0;
                 const holidayDeductible = holidayDateMap.get(ds); // undefined = no holiday, true = deductible, false = not
 
+                if (!isSunday) {
+                    // Dynamic monthly baseline: all non-Sunday days in selected month.
+                    calendarMonthlyBase += dailyTarget;
+                }
+
                 if (isPiket) {
                     // PIKET: masuk di hari libur → increase target
                     workingDaysCount++;
-                    addedPiketMinutes += dailyTarget;
+                    addedPiketMinutes += effectiveDailyTarget;
                 } else if (isSunday) {
                     // Default day off — skip
                 } else if (holidayDeductible !== undefined) {
                     // Holiday exists on this date
                     if (holidayDeductible === true) {
                         // Deductible holiday (sakit, emergency, libur nasional) → reduce target
-                        deductionMinutes += dailyTarget;
+                        deductionMinutes += effectiveDailyTarget;
+                    } else {
+                        // Non-deductible leave still follows active daily reduction windows.
+                        adjustmentDeductionTotal += reductionForDay;
                     }
                     // Non-deductible: target stays, user harus menabung jam
                 } else {
                     // Normal work day
                     workingDaysCount++;
 
-                    adjustmentDeductionTotal += getAdjustmentReductionForDay(tempDate, adjustmentWindows);
+                    adjustmentDeductionTotal += reductionForDay;
                 }
 
                 tempDate.setDate(tempDate.getDate() + 1);
             }
 
             // Final Formula: base - deductions + piket bonus - adjustment reductions
-            dynamicMonthlyTarget = monthlyTargetBase - deductionMinutes + addedPiketMinutes - adjustmentDeductionTotal;
+            dynamicMonthlyTarget = calendarMonthlyBase - deductionMinutes + addedPiketMinutes - adjustmentDeductionTotal;
 
             const daysInSelectedMonth = endOfMonth.getDate();
             const elapsedDays = isCurrentSelectedMonth
@@ -299,7 +309,7 @@ export async function GET(req: Request) {
             const actualMinutesWorked = currentMinutes;
             const differenceMinutes = actualMinutesWorked - elapsedTarget;
 
-            console.log("[Stats API] Working days:", workingDaysCount, "Deduction:", deductionMinutes, "Piket+:", addedPiketMinutes, "Adj-:", adjustmentDeductionTotal, "Base:", monthlyTargetBase, "Target:", dynamicMonthlyTarget);
+            console.log("[Stats API] Working days:", workingDaysCount, "Deduction:", deductionMinutes, "Piket+:", addedPiketMinutes, "Adj-:", adjustmentDeductionTotal, "Base:", calendarMonthlyBase, "Target:", dynamicMonthlyTarget);
             return NextResponse.json({
                 userName: user.name,
                 userEmail: user.email,
