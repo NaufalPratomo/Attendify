@@ -4,6 +4,12 @@ import Attendance from '@/models/Attendance';
 import Adjustment from '@/models/Adjustment';
 import '@/models/User';
 import { sendEmail } from '@/lib/mail';
+import {
+    JAKARTA_TIME_ZONE,
+    getWibEndOfDay,
+    getWibStartOfDay,
+    toWibDateString,
+} from '@/lib/timezone';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,13 +23,6 @@ type AttendanceWithUser = {
         email?: string;
         dailyTarget?: number;
     };
-};
-
-const getStartOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-const getEndOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-
-const toLocalDateString = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 const getReminderMilestoneToSend = (remainingMinutes: number, sentMilestones: number[]) => {
@@ -95,9 +94,9 @@ export async function GET(req: Request) {
         await connectToDatabase();
 
         const now = new Date();
-        const startOfDay = getStartOfDay(now);
-        const endOfDay = getEndOfDay(now);
-        const todayDateString = toLocalDateString(now);
+        const startOfDay = getWibStartOfDay(now);
+        const endOfDay = getWibEndOfDay(now);
+        const todayDateString = toWibDateString(now);
 
         const adjustments = await Adjustment.find({
             startDate: { $lte: todayDateString },
@@ -154,11 +153,13 @@ export async function GET(req: Request) {
                     hour: '2-digit',
                     minute: '2-digit',
                     hour12: false,
+                    timeZone: JAKARTA_TIME_ZONE,
                 });
                 const estimatedCheckoutTime = estimatedCheckoutDate.toLocaleTimeString('id-ID', {
                     hour: '2-digit',
                     minute: '2-digit',
                     hour12: false,
+                    timeZone: JAKARTA_TIME_ZONE,
                 });
 
                 await sendEmail(

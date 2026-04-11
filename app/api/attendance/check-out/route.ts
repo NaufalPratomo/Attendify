@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/db';
 import Attendance from '@/models/Attendance';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { getWibEndOfDay, getWibStartOfDay } from '@/lib/timezone';
 
 export async function POST(req: Request) {
     try {
@@ -16,8 +17,8 @@ export async function POST(req: Request) {
 
         // Find active check-in
         const now = new Date();
-        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-        const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+        const startOfDay = getWibStartOfDay(now);
+        const endOfDay = getWibEndOfDay(now);
 
         const attendance = await Attendance.findOne({
             userId: payload.userId,

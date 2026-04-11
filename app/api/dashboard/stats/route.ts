@@ -7,10 +7,20 @@ import Adjustment from '@/models/Adjustment';
 import { verifyToken } from '@/lib/auth';
 import { sendEmail } from '@/lib/mail';
 import { cookies } from 'next/headers';
+import {
+    JAKARTA_TIME_ZONE,
+    getWibDateParts,
+    getWibDayOfWeek,
+    getWibEndOfDay,
+    getWibMonthRange,
+    getWibStartOfDay,
+    getWibYearRange,
+    toWibDateString,
+} from '@/lib/timezone';
 
 type AdjustmentWindow = {
-    start: Date;
-    end: Date;
+    startDate: string;
+    endDate: string;
     reductionMinutes: number;
 };
 
@@ -24,13 +34,6 @@ type ScheduleEntry = {
     type: 'GLOBAL' | 'CUTI_BERSAMA' | 'PERSONAL' | 'PIKET';
     dateString: string;
     isDeductible?: boolean;
-};
-
-const getStartOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-const getEndOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-
-const toLocalDateString = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 const CHECKOUT_REMINDER_MILESTONES = [60, 30, 10, 0] as const;
@@ -85,22 +88,20 @@ const buildReminderEmailHtml = ({
 const normalizeAdjustments = (adjustments: AdjustmentInput[]): AdjustmentWindow[] => {
     return adjustments
         .map((adj) => {
-            const start = new Date(`${adj.startDate}T00:00:00.000`);
-            const end = new Date(`${adj.endDate}T23:59:59.999`);
+            const startDate = String(adj.startDate || '');
+            const endDate = String(adj.endDate || '');
             return {
-                start,
-                end,
+                startDate,
+                endDate,
                 reductionMinutes: Number(adj.reductionMinutes || 0)
             };
         })
-        .filter((adj) => !Number.isNaN(adj.start.getTime()) && !Number.isNaN(adj.end.getTime()));
+        .filter((adj) => /^\d{4}-\d{2}-\d{2}$/.test(adj.startDate) && /^\d{4}-\d{2}-\d{2}$/.test(adj.endDate));
 };
 
-const getAdjustmentReductionForDay = (date: Date, adjustmentWindows: AdjustmentWindow[]) => {
-    const dayStart = getStartOfDay(date);
-    const dayEnd = getEndOfDay(date);
+const getAdjustmentReductionForDay = (dateString: string, adjustmentWindows: AdjustmentWindow[]) => {
     return adjustmentWindows.reduce((total, adj) => {
-        if (adj.start <= dayEnd && adj.end >= dayStart) {
+        if (adj.startDate <= dateString && adj.endDate >= dateString) {
             return total + adj.reductionMinutes;
         }
         return total;
@@ -167,22 +168,21 @@ export async function GET(req: Request) {
         try {
             // Calculate Dates
             const now = new Date();
+            const wibNow = getWibDateParts(now);
             const url = new URL(req.url);
             const yearParam = parseInt(url.searchParams.get('year') || '', 10);
             const monthParam = parseInt(url.searchParams.get('month') || '', 10); // 1-12
 
-            const selectedYear = Number.isNaN(yearParam) ? now.getFullYear() : yearParam;
-            const selectedMonthIndex = Number.isNaN(monthParam) ? now.getMonth() : Math.min(11, Math.max(0, monthParam - 1));
-            const isCurrentSelectedMonth = selectedYear === now.getFullYear() && selectedMonthIndex === now.getMonth();
+            const selectedYear = Number.isNaN(yearParam) ? wibNow.year : yearParam;
+            const selectedMonthIndex = Number.isNaN(monthParam) ? (wibNow.month - 1) : Math.min(11, Math.max(0, monthParam - 1));
+            const isCurrentSelectedMonth = selectedYear === wibNow.year && selectedMonthIndex === (wibNow.month - 1);
 
-            const startOfDay = getStartOfDay(now);
-            const endOfDay = getEndOfDay(now);
+            const startOfDay = getWibStartOfDay(now);
+            const endOfDay = getWibEndOfDay(now);
+            const { start: startOfYear, end: endOfYear } = getWibYearRange(selectedYear);
+            const { start: startOfMonth, end: endOfMonth } = getWibMonthRange(selectedYear, selectedMonthIndex);
 
-            const startOfYear = new Date(selectedYear, 0, 1);
-            const endOfYear = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
-
-            const startOfMonth = new Date(selectedYear, selectedMonthIndex, 1);
-            const endOfMonth = new Date(selectedYear, selectedMonthIndex + 1, 0, 23, 59, 59, 999);
+            const daysInSelectedMonth = new Date(Date.UTC(selectedYear, selectedMonthIndex + 1, 0)).getUTCDate();
 
             // Today's Attendance
             const todayAttendance = await Attendance.findOne({
@@ -247,7 +247,7 @@ export async function GET(req: Request) {
             const monthStr = String(selectedMonthIndex + 1).padStart(2, '0');
             const yearStr = String(selectedYear);
             const startDateStr = `${yearStr}-${monthStr}-01`;
-            const endDateStr = `${yearStr}-${monthStr}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+            const endDateStr = `${yearStr}-${monthStr}-${String(daysInSelectedMonth).padStart(2, '0')}`;
 
             const scheduleEntries = await Holiday.find({
                 dateString: { $gte: startDateStr, $lte: endDateStr },
@@ -282,7 +282,8 @@ export async function GET(req: Request) {
             const adjustmentWindows = normalizeAdjustments(adjustments);
 
             if (isCurrentSelectedMonth) {
-                const todayReduction = getAdjustmentReductionForDay(now, adjustmentWindows);
+                const todayDateString = toWibDateString(now);
+                const todayReduction = getAdjustmentReductionForDay(todayDateString, adjustmentWindows);
                 dynamicDailyTarget = Math.max(0, dailyTarget - todayReduction);
                 dailyProgress = dynamicDailyTarget > 0
                     ? Math.min(100, Math.round((todayMinutes / dynamicDailyTarget) * 100))
@@ -310,11 +311,13 @@ export async function GET(req: Request) {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                     hour12: false,
+                                    timeZone: JAKARTA_TIME_ZONE,
                                 });
                                 const estimatedCheckoutTime = estimatedCheckoutDate.toLocaleTimeString('id-ID', {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                     hour12: false,
+                                    timeZone: JAKARTA_TIME_ZONE,
                                 });
 
                                 await sendEmail(
@@ -355,11 +358,10 @@ export async function GET(req: Request) {
             let adjustmentDeductionTotal = 0;
             let calendarMonthlyBase = 0;
 
-            const tempDate = new Date(startOfMonth);
-            while (tempDate <= endOfMonth) {
-                const dayOfWeek = tempDate.getDay();
-                const ds = toLocalDateString(tempDate);
-                const reductionForDay = getAdjustmentReductionForDay(tempDate, adjustmentWindows);
+            for (let day = 1; day <= daysInSelectedMonth; day++) {
+                const dayOfWeek = getWibDayOfWeek(selectedYear, selectedMonthIndex, day);
+                const ds = `${yearStr}-${monthStr}-${String(day).padStart(2, '0')}`;
+                const reductionForDay = getAdjustmentReductionForDay(ds, adjustmentWindows);
                 const effectiveDailyTarget = Math.max(0, dailyTarget - reductionForDay);
 
                 const isPiket = piketDateSet.has(ds);
@@ -393,16 +395,13 @@ export async function GET(req: Request) {
 
                     adjustmentDeductionTotal += reductionForDay;
                 }
-
-                tempDate.setDate(tempDate.getDate() + 1);
             }
 
             // Final Formula: base - deductions + piket bonus - adjustment reductions
             dynamicMonthlyTarget = calendarMonthlyBase - deductionMinutes + addedPiketMinutes - adjustmentDeductionTotal;
 
-            const daysInSelectedMonth = endOfMonth.getDate();
             const elapsedDays = isCurrentSelectedMonth
-                ? now.getDate()
+                ? wibNow.day
                 : (startOfMonth > now ? 0 : daysInSelectedMonth);
             const elapsedTarget = dynamicMonthlyTarget > 0
                 ? Math.round((dynamicMonthlyTarget / daysInSelectedMonth) * elapsedDays)

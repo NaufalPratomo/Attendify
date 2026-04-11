@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/db';
 import Attendance from '@/models/Attendance';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { getWibDateParts, getWibMonthRange } from '@/lib/timezone';
 
 export async function GET(req: Request) {
     try {
@@ -15,12 +16,13 @@ export async function GET(req: Request) {
         if (!payload) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
         const { searchParams } = new URL(req.url);
-        const month = parseInt(searchParams.get('month') || '0');
-        const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
+        const now = new Date();
+        const wibNow = getWibDateParts(now);
+        const month = parseInt(searchParams.get('month') || String(wibNow.month - 1), 10);
+        const year = parseInt(searchParams.get('year') || String(wibNow.year), 10);
 
         // Create Date Range
-        const startOfMonth = new Date(year, month, 1);
-        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+        const { start: startOfMonth, end: endOfMonth } = getWibMonthRange(year, month);
 
         const records = await Attendance.find({
             userId: payload.userId,
