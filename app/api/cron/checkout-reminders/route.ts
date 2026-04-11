@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db';
 import Attendance from '@/models/Attendance';
 import Adjustment from '@/models/Adjustment';
+import '@/models/User';
 import { sendEmail } from '@/lib/mail';
 
 export const runtime = 'nodejs';
@@ -110,7 +111,7 @@ export async function GET(req: Request) {
         const activeAttendances = await Attendance.find({
             checkIn: { $gte: startOfDay, $lte: endOfDay },
             checkOut: { $exists: false },
-        }).populate('userId', 'name email dailyTarget');
+        }).populate({ path: 'userId', select: 'name email dailyTarget', model: 'User' });
 
         let remindersSent = 0;
         let skipped = 0;
@@ -193,6 +194,9 @@ export async function GET(req: Request) {
         });
     } catch (error) {
         console.error('[Cron Checkout Reminders] Error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({
+            message: 'Internal server error',
+            details: error instanceof Error ? error.message : String(error),
+        }, { status: 500 });
     }
 }
