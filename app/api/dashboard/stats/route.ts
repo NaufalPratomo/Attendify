@@ -5,6 +5,7 @@ import Attendance from '@/models/Attendance';
 import Holiday from '@/models/Holiday';
 import Adjustment from '@/models/Adjustment';
 import { verifyToken } from '@/lib/auth';
+import { sendEmail } from '@/lib/mail';
 import { cookies } from 'next/headers';
 
 type AdjustmentWindow = {
@@ -30,6 +31,55 @@ const getEndOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth()
 
 const toLocalDateString = (date: Date) => {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const CHECKOUT_REMINDER_MILESTONES = [60, 30, 10, 0] as const;
+
+const getReminderMilestoneToSend = (remainingMinutes: number, sentMilestones: number[]) => {
+    if (remainingMinutes <= 0 && !sentMilestones.includes(0)) return 0;
+    if (remainingMinutes <= 10 && remainingMinutes > 0 && !sentMilestones.includes(10)) return 10;
+    if (remainingMinutes <= 30 && remainingMinutes > 10 && !sentMilestones.includes(30)) return 30;
+    if (remainingMinutes <= 60 && remainingMinutes > 30 && !sentMilestones.includes(60)) return 60;
+    return null;
+};
+
+const getReminderLabel = (milestone: number) => {
+    if (milestone === 0) return 'Sudah waktunya pulang';
+    return `${milestone} menit lagi`;
+};
+
+const buildReminderEmailHtml = ({
+    name,
+    milestone,
+    checkInTime,
+    estimatedCheckoutTime,
+    remainingMinutes,
+}: {
+    name: string;
+    milestone: number;
+    checkInTime: string;
+    estimatedCheckoutTime: string;
+    remainingMinutes: number;
+}) => {
+    const safeRemaining = Math.max(0, remainingMinutes);
+    const headline = milestone === 0
+        ? 'Waktunya check-out.'
+        : `Jam pulang tinggal ${milestone} menit lagi.`;
+
+    return `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+            <h2 style="margin: 0 0 12px;">Pengingat Jam Pulang</h2>
+            <p>Halo ${name},</p>
+            <p>${headline}</p>
+            <ul>
+                <li>Check-in: <strong>${checkInTime}</strong></li>
+                <li>Estimasi jam pulang: <strong>${estimatedCheckoutTime}</strong></li>
+                <li>Sisa waktu: <strong>${safeRemaining} menit</strong></li>
+            </ul>
+            <p>Silakan bersiap untuk check-out tepat waktu.</p>
+            <p style="margin-top: 20px; color: #6b7280;">Attendify Notification Service</p>
+        </div>
+    `;
 };
 
 const normalizeAdjustments = (adjustments: AdjustmentInput[]): AdjustmentWindow[] => {
@@ -237,6 +287,57 @@ export async function GET(req: Request) {
                 dailyProgress = dynamicDailyTarget > 0
                     ? Math.min(100, Math.round((todayMinutes / dynamicDailyTarget) * 100))
                     : (todayMinutes > 0 ? 100 : 0);
+
+                if (todayStatus === 'checked-in' && todayAttendance && user.email) {
+                    const sentMilestones = Array.isArray(todayAttendance.notificationMilestonesSent)
+                        ? todayAttendance.notificationMilestonesSent
+                        : [];
+
+                    const remainingMinutes = dynamicDailyTarget - todayMinutes;
+                    const milestone = getReminderMilestoneToSend(remainingMinutes, sentMilestones);
+
+                    if (milestone !== null && CHECKOUT_REMINDER_MILESTONES.includes(milestone as 0 | 10 | 30 | 60)) {
+                        const lockResult = await Attendance.updateOne(
+                            { _id: todayAttendance._id, notificationMilestonesSent: { $ne: milestone } },
+                            { $addToSet: { notificationMilestonesSent: milestone } }
+                        );
+
+                        if (lockResult.modifiedCount > 0) {
+                            try {
+                                const checkInDate = new Date(todayAttendance.checkIn);
+                                const estimatedCheckoutDate = new Date(checkInDate.getTime() + (dynamicDailyTarget * 60000));
+                                const checkInTime = checkInDate.toLocaleTimeString('id-ID', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false,
+                                });
+                                const estimatedCheckoutTime = estimatedCheckoutDate.toLocaleTimeString('id-ID', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false,
+                                });
+
+                                await sendEmail(
+                                    user.email,
+                                    `Attendify - Pengingat Pulang (${getReminderLabel(milestone)})`,
+                                    buildReminderEmailHtml({
+                                        name: user.name,
+                                        milestone,
+                                        checkInTime,
+                                        estimatedCheckoutTime,
+                                        remainingMinutes,
+                                    })
+                                );
+                            } catch (emailError) {
+                                console.error('[Stats API] Failed to send checkout reminder email:', emailError);
+                                await Attendance.updateOne(
+                                    { _id: todayAttendance._id },
+                                    { $pull: { notificationMilestonesSent: milestone } }
+                                );
+                            }
+                        }
+                    }
+                }
             } else {
                 dynamicDailyTarget = dailyTarget;
                 dailyProgress = 0;
